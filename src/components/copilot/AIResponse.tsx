@@ -60,6 +60,7 @@ export default function AIResponse({ response }: AIResponseProps) {
   const contentId = `ai-response-content-${uniqueId}`;
 
   const labelId = `ai-label-${uniqueId}`;
+  const bodyId = `ai-body-${response.id}`;
 
   return (
     <article
@@ -67,9 +68,17 @@ export default function AIResponse({ response }: AIResponseProps) {
       tabIndex={0}
       /* a11y: aria-labelledby points to sr-only div that announces confidence first */
       aria-labelledby={labelId}
+      /* a11y: aria-describedby points to the body paragraph for additional context */
+      aria-describedby={bodyId}
       className={[
         "rounded-lg p-4",
         config.borderClass,
+        /* Colored left border by confidence level for quick visual scanning */
+        response.confidence === "high"
+          ? "border-l-4 border-l-ai-confidence-high"
+          : response.confidence === "moderate"
+            ? "border-l-4 border-l-ai-confidence-medium"
+            : "border-l-4 border-l-ai-confidence-low",
         "bg-surface-raised",
         "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
       ].join(" ")}
@@ -137,9 +146,9 @@ export default function AIResponse({ response }: AIResponseProps) {
       </div>
 
       {/* Response Content */}
-      <div id={contentId} className="text-sm text-primary leading-relaxed mb-4">
+      <p id={bodyId} className="text-sm text-primary leading-relaxed mb-4">
         {response.content}
-      </div>
+      </p>
 
       {/* Low-confidence mandatory verification link (A3.4) */}
       {response.confidence === "low" && (
@@ -164,9 +173,9 @@ export default function AIResponse({ response }: AIResponseProps) {
         </a>
       )}
 
-      {/* Trust Signal 3: Sources List */}
+      {/* Trust Signal 3: Sources List — wrapped in <footer> for semantic structure */}
       {response.sources.length > 0 && (
-        <div className="border-t border-border-default pt-3">
+        <footer className="border-t border-border-default pt-3">
           <h4 className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
             Sources
           </h4>
@@ -214,7 +223,7 @@ export default function AIResponse({ response }: AIResponseProps) {
               </li>
             ))}
           </ul>
-        </div>
+        </footer>
       )}
     </article>
   );

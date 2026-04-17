@@ -1023,19 +1023,27 @@ export default function DashboardPage() {
                     .map((item) => (
                       <article
                         key={item.id}
+                        /* a11y: aria-labelledby links article to its headline for screen reader navigation */
+                        aria-labelledby={`news-headline-${item.id}`}
                         className="border-b border-border-default last:border-0 pb-4 last:pb-0"
                       >
-                        <h3 className="text-sm font-semibold text-primary">
+                        <h3
+                          id={`news-headline-${item.id}`}
+                          className="text-sm font-semibold text-primary"
+                        >
                           {item.title}
                         </h3>
                         <p className="text-xs text-muted mt-1">
-                          {item.source} &middot; {formatDate(item.date)}
+                          {item.source} &middot;{" "}
+                          <time dateTime={item.date}>{formatDate(item.date)}</time>
                         </p>
                         <div className="mt-2 p-2 rounded bg-surface-sunken">
                           <p className="text-xs text-secondary">
+                            <span className="sr-only">AI Summary: </span>
                             <span
                               className="inline-block px-1 py-0.5 text-[10px] font-medium bg-feedback-info text-inverse rounded mr-1"
-                              aria-label="AI generated summary"
+                              /* a11y: aria-hidden because the sr-only span above provides the label for screen readers */
+                              aria-hidden="true"
                             >
                               AI Summary
                             </span>

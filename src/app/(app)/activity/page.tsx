@@ -37,7 +37,7 @@ const FILTER_CHIPS: { value: FilterChip; label: string }[] = [
 ];
 
 /* ─── Tab types ─── */
-type ActiveTab = "timeline" | "patterns";
+type ActiveTab = "timeline" | "table" | "patterns";
 
 /* ─── Accent color mapping ─── */
 const accentColors: Record<ActivityItem["type"], string> = {
@@ -310,10 +310,17 @@ function ActivityCard({ item }: { item: ActivityItem }) {
   );
 }
 
+/* ─── Transaction table sort types ─── */
+type TableSortKey = "date" | "symbol" | "type" | "shares" | "price" | "total" | "status";
+type TableSortDir = "ascending" | "descending" | "none";
+
 /* ─── Activity Page ─── */
 export default function ActivityPage() {
   const [activeFilter, setActiveFilter] = useState<FilterChip>("all");
   const [activeTab, setActiveTab] = useState<ActiveTab>("timeline");
+  const [tableSortKey, setTableSortKey] = useState<TableSortKey>("date");
+  const [tableSortDir, setTableSortDir] = useState<TableSortDir>("descending");
+  const [sortAnnouncement, setSortAnnouncement] = useState("");
 
   const allItems = useMemo(() => buildActivityItems(), []);
 
@@ -342,6 +349,69 @@ export default function ActivityPage() {
     }
   }, [activeFilter, allItems]);
 
+  /* Sorted transactions for the table view */
+  const sortedTransactions = useMemo(() => {
+    const sorted = [...transactions];
+    if (tableSortDir === "none") return sorted;
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (tableSortKey) {
+        case "date":
+          cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case "symbol":
+          cmp = a.symbol.localeCompare(b.symbol);
+          break;
+        case "type":
+          cmp = a.type.localeCompare(b.type);
+          break;
+        case "shares":
+          cmp = a.shares - b.shares;
+          break;
+        case "price":
+          cmp = a.price - b.price;
+          break;
+        case "total":
+          cmp = a.total - b.total;
+          break;
+        case "status":
+          cmp = a.status.localeCompare(b.status);
+          break;
+      }
+      return tableSortDir === "ascending" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [tableSortKey, tableSortDir]);
+
+  const handleTableSort = (key: TableSortKey) => {
+    let nextDir: TableSortDir;
+    if (tableSortKey === key) {
+      nextDir = tableSortDir === "ascending" ? "descending" : "ascending";
+    } else {
+      nextDir = "descending";
+    }
+    setTableSortKey(key);
+    setTableSortDir(nextDir);
+    setSortAnnouncement(`Sorted by ${key}, ${nextDir}`);
+  };
+
+  const handleCsvDownload = () => {
+    const header = "Date,Symbol,Action,Quantity,Price,Total,Status";
+    const rows = sortedTransactions.map(
+      (tx) =>
+        `${tx.date},${tx.symbol},${tx.type === "buy" ? "Buy" : "Sell"},${tx.shares},${tx.price},${tx.total},${tx.status}`
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "transaction-history.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    announce("Transaction history CSV downloaded", "polite");
+  };
+
   const handleFilterChange = (filter: FilterChip) => {
     setActiveFilter(filter);
     const chipLabel = FILTER_CHIPS.find((c) => c.value === filter)?.label ?? filter;
@@ -369,6 +439,7 @@ export default function ActivityPage() {
       >
         {([
           { key: "timeline" as const, label: "Timeline" },
+          { key: "table" as const, label: "Table" },
           { key: "patterns" as const, label: "Patterns" },
         ]).map((tab) => {
           const isActive = activeTab === tab.key;
@@ -463,6 +534,110 @@ export default function ActivityPage() {
             )}
           </section>
         </>
+      )}
+
+      {/* ─── Table Tab: Transaction History ─── */}
+      {activeTab === "table" && (
+        <section aria-labelledby="activity-table-heading">
+          <div className="flex items-center justify-between mb-4">
+            <h2 id="activity-table-heading" className="text-lg font-semibold text-primary">
+              Transaction History
+            </h2>
+            <button
+              type="button"
+              onClick={handleCsvDownload}
+              className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-md text-sm font-medium border border-border-default text-secondary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            >
+              Download CSV
+            </button>
+          </div>
+
+          {/* a11y: live region for sort announcements */}
+          <div role="status" className="sr-only" aria-live="polite">
+            {sortAnnouncement}
+          </div>
+
+          <div className="bg-surface-raised border border-border-default rounded-lg overflow-x-auto">
+            <table className="w-full text-sm">
+              <caption className="text-left text-sm font-medium text-muted p-4 pb-2">
+                All transactions showing date, symbol, action, quantity, price per share, total cost, and status. Click column headers to sort.
+              </caption>
+              <thead>
+                <tr className="border-b border-border-default">
+                  {([
+                    { key: "date" as const, label: "Date" },
+                    { key: "symbol" as const, label: "Symbol" },
+                    { key: "type" as const, label: "Action" },
+                    { key: "shares" as const, label: "Quantity" },
+                    { key: "price" as const, label: "Price" },
+                    { key: "total" as const, label: "Total" },
+                    { key: "status" as const, label: "Status" },
+                  ]).map((col) => (
+                    <th key={col.key} scope="col" className="text-left p-3">
+                      <button
+                        type="button"
+                        onClick={() => handleTableSort(col.key)}
+                        aria-sort={tableSortKey === col.key ? tableSortDir : undefined}
+                        className="inline-flex items-center gap-1 min-h-[44px] font-semibold text-primary text-left focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                      >
+                        {col.label}
+                        {tableSortKey === col.key && (
+                          <span aria-hidden="true">
+                            {tableSortDir === "ascending" ? " \u25B2" : " \u25BC"}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTransactions.map((tx) => (
+                  <tr
+                    key={tx.id}
+                    className="border-b border-border-default last:border-0"
+                  >
+                    <td className="p-3 tabular-nums">
+                      <time dateTime={tx.date}>{formatDate(tx.date)}</time>
+                    </td>
+                    <td className="p-3 font-medium text-primary">{tx.symbol}</td>
+                    <td className="p-3">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                          tx.type === "buy"
+                            ? "bg-gain-bg text-gain"
+                            : "bg-loss-bg text-loss"
+                        }`}
+                      >
+                        {tx.type === "buy" ? "Buy" : "Sell"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right tabular-nums">{tx.shares}</td>
+                    <td className="p-3 text-right tabular-nums">
+                      {formatCurrency(tx.price)}
+                    </td>
+                    <td className="p-3 text-right tabular-nums font-medium">
+                      {formatCurrency(tx.total)}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          tx.status === "completed"
+                            ? "bg-gain-bg text-gain"
+                            : tx.status === "pending"
+                              ? "bg-[var(--color-feedback-warning)]/15 text-feedback-warning"
+                              : "bg-surface-sunken text-muted"
+                        }`}
+                      >
+                        {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       {/* ─── Patterns Tab ─── */}
