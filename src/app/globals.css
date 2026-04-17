@@ -13,62 +13,141 @@
    ============================================================ */
 
 @theme {
-  /* ── Surfaces (Light) § 11.3 ── */
-  --color-surface-canvas: #F7F8FA;
-  --color-surface-raised: #FFFFFF;
-  --color-surface-overlay: #FFFFFF;
-  --color-surface-pressed: #F4F4F5;
-  --color-surface-inverse: #18181B;
+  /* ============================================================
+     Accrue Design System v5 — DARK-FIRST token set
+     (data-theme="dark" is default; light via [data-theme="light"])
 
-  /* ── Text § 11.3 ── */
-  --color-primary: #18181B;
-  --color-secondary: #52525B;
-  --color-muted: #71717A;
-  --color-inverse: #FFFFFF;
+     CRITICAL: Direct hex values only. Never var() inside @theme.
+     ============================================================ */
 
-  /* ── Borders ── */
-  --color-border-subtle: #E4E4E7;
-  --color-border-default: #D4D4D8;
-  --color-border-strong: #A1A1AA;
+  /* ── Surfaces (Dark default) § v5 ── */
+  --color-surface-canvas: #050810;
+  --color-surface-raised: #0D131F;
+  --color-surface-overlay: #1A2232;
+  --color-surface-pressed: #232D3F;
+  --color-surface-inverse: #F1F5F9;
+  --color-surface-strip: #1A2232;
+  --color-surface-panel-head: #121926;
+  --color-surface-ai-card: #0D131F;
 
-  /* ── Focus — electric cyan, 3px outline § 11.12 ── */
-  --color-focus-ring: #0891B2;
+  /* ── Text (Dark default) § v5 ── */
+  --color-primary: #F1F5F9;
+  --color-secondary: #A8B5C8;
+  --color-muted: #8593A8;
+  --color-micro: #5F6D88;
+  --color-inverse: #050810;
+  --color-on-accent: #050810;
 
-  /* ── Accent — electric cyan § 11.3 ── */
-  --color-accent: #0891B2;
-  --color-accent-hover: #0E7490;
+  /* ── Borders (Dark default) § v5 ── */
+  --color-border-subtle: #1A2232;
+  --color-border-default: #2E3A4E;
+  --color-border-strong: #44516A;
+  --color-grid-line: #232D3F;
 
-  /* ── Actions — dark neutral primary § 11.3 ── */
-  --color-action-primary: #111827;
-  --color-action-primary-hover: #18181B;
-  --color-action-ghost-fg: #0891B2;
-  --color-action-ghost-hover: #ECFEFF;
-  --color-action-destructive: #B91C1C;
-  --color-action-destructive-hover: #991B1B;
+  /* ── Focus — cyan-400 for dark-mode visibility (8.2:1 on canvas) § v5 ── */
+  --color-focus-ring: #22D3EE;
 
-  /* ── Financial — classic green/red, AAA contrast § 11.3 ── */
-  --color-gain: #047857;
-  --color-gain-subtle: #D1FAE5;
-  --color-loss: #B91C1C;
-  --color-loss-subtle: #FEE2E2;
+  /* ── Accent — cyan-500 signature § v5 ── */
+  --color-accent: #06B6D4;
+  --color-accent-hover: #22D3EE;
+  --color-accent-bg: rgba(6, 182, 212, 0.15);
+  --color-accent-chart: #22D3EE;
+  --color-accent-live: #67E8F9;
 
-  /* ── Feedback ── */
-  --color-feedback-success: #047857;
-  --color-feedback-error: #B91C1C;
-  --color-feedback-warning: #B45309;
-  --color-feedback-info: #1E40AF;
+  /* ── Actions (Dark default) § v5 ── */
+  --color-action-primary: #F1F5F9;
+  --color-action-primary-hover: #E2E8F0;
+  --color-action-primary-fg: #050810;
+  --color-action-accent-bg: #06B6D4;
+  --color-action-accent-hover: #22D3EE;
+  --color-action-accent-fg: #050810;
+  --color-action-ghost-fg: #E2E8F0;
+  --color-action-ghost-hover: #232D3F;
+  --color-action-ghost-border: #44516A;
+  --color-action-gain-bg: #059669;
+  --color-action-gain-hover: #10B981;
+  --color-action-destructive: #DC2626;
+  --color-action-destructive-hover: #B91C1C;
 
-  /* ── AI Confidence § 2.8 ── */
-  --color-ai-high: #047857;
-  --color-ai-moderate: #1E40AF;
-  --color-ai-low: #B45309;
-  --color-ai-badge-bg: #18181B;
+  /* ── Financial — v5 instrument-grade gain/loss § v5 ── */
+  --color-gain: #10B981;
+  --color-gain-emphasis: #047857;
+  --color-gain-chart: #34D399;
+  --color-gain-bg: rgba(16, 185, 129, 0.15);
+  --color-gain-pill-fg: #6EE7B7;
+  --color-gain-border: rgba(16, 185, 129, 0.3);
+  --color-gain-subtle: #ECFDF5;
+  --color-loss: #EF4444;
+  --color-loss-emphasis: #B91C1C;
+  --color-loss-chart: #F87171;
+  --color-loss-bg: rgba(239, 68, 68, 0.15);
+  --color-loss-pill-fg: #FCA5A5;
+  --color-loss-border: rgba(239, 68, 68, 0.3);
+  --color-loss-subtle: #FEF2F2;
+  --color-fin-neutral: #8593A8;
+  --color-fin-pulse-gain-bg: rgba(16, 185, 129, 0.25);
+  --color-fin-pulse-loss-bg: rgba(239, 68, 68, 0.25);
+
+  /* ── Feedback § v5 ── */
+  --color-feedback-success: #10B981;
+  --color-feedback-error: #EF4444;
+  --color-feedback-warning: #F59E0B;
+  --color-feedback-info: #3B82F6;
+
+  /* ── AI Confidence § v5 ── */
+  --color-ai-high: #10B981;
+  --color-ai-moderate: #60A5FA;
+  --color-ai-low: #FBBF24;
+  --color-ai-high-bg: rgba(16, 185, 129, 0.12);
+  --color-ai-moderate-bg: rgba(59, 130, 246, 0.12);
+  --color-ai-low-bg: rgba(245, 158, 11, 0.12);
+  --color-ai-badge-bg: #232D3F;
   --color-ai-badge-fg: #22D3EE;
 
-  /* ── Typography § 11.2 ── */
+  /* ── Status § v5 ── */
+  --color-status-positive: #10B981;
+  --color-status-negative: #EF4444;
+  --color-status-neutral: #5F6D88;
+  --color-status-breaking: #F87171;
+  --color-status-live: #22D3EE;
+
+  /* ── Warn / Info / Violet § v5 ── */
+  --color-warn: #F59E0B;
+  --color-info: #3B82F6;
+  --color-violet: #8B5CF6;
+
+  /* ── Typography § v5 ── */
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --font-serif: 'Source Serif 4', ui-serif, Georgia, serif;
+
+  /* ── Spacing § v5 ── */
+  --space-px: 1px; --space-0_5: 2px; --space-1: 4px; --space-1_5: 6px;
+  --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-7: 28px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px;
+
+  /* ── Radius § v5 ── */
+  --radius-none: 0; --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px;
+  --radius-lg: 8px; --radius-xl: 12px; --radius-2xl: 16px; --radius-full: 9999px;
+
+  /* ── Elevation — dark (inner-stroke) § v5 ── */
+  --elevation-1: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  --elevation-2: 0 1px 3px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --elevation-3: 0 4px 8px 0 rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --elevation-4: 0 8px 24px -4px rgba(0, 0, 0, 0.8), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+
+  /* ── Motion § v5 ── */
+  --duration-80: 80ms; --duration-120: 120ms; --duration-180: 180ms;
+  --duration-240: 240ms; --duration-400: 400ms; --duration-ticker: 20000ms;
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Type scale § v5 ── */
+  --text-3xs: 10px; --text-2xs: 11px; --text-xs: 12px; --text-sm: 13px;
+  --text-base: 14px; --text-md: 15px; --text-lg: 18px; --text-xl: 24px;
+  --text-2xl: 32px; --text-3xl: 44px; --text-4xl: 56px;
 }
 
 /* ============================================================
@@ -79,18 +158,18 @@
   left: -9999px;
   top: 0;
   padding: 12px 24px;
-  background: #FFFFFF;
-  color: #0891B2;
+  background: #0D131F;
+  color: #22D3EE;
   font-weight: 600;
   font-size: 14px;
   text-decoration: underline;
-  border: 2px solid #0891B2;
+  border: 2px solid #22D3EE;
   border-radius: 0 0 8px 0;
   z-index: 9999;
 }
 .skip-link:focus {
   left: 0;
-  outline: 3px solid #0891B2;
+  outline: 3px solid #22D3EE;
   outline-offset: 2px;
 }
 
@@ -123,13 +202,23 @@
   font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1, "ss01" 1;
 }
 
+/* v5 mono utility — comprehensive selector for all financial numerics */
+.mono, [data-mono="true"], td.numeric, th.numeric,
+input[inputmode="decimal"], input[type="number"],
+.price, .ticker, .percent, .timestamp {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums slashed-zero;
+  font-feature-settings: "tnum" 1,"lnum" 1,"zero" 1;
+  letter-spacing: -0.01em;
+}
+
 /* ============================================================
    Focus — § 11.12
    3px solid electric cyan, 2px offset. ALWAYS visible.
    ============================================================ */
 :focus { outline: none; }
 :focus-visible {
-  outline: 3px solid #0891B2;
+  outline: 3px solid #22D3EE;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -169,12 +258,12 @@ body {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  background: #F7F8FA;
-  color: #18181B;
+  background: #050810;
+  color: #F1F5F9;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #0891B2;
-  color: #FFFFFF;
+  background: #06B6D4;
+  color: #050810;
 }

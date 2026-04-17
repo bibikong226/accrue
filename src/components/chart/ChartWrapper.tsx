@@ -374,33 +374,60 @@ export default function ChartWrapper({
       {/* ─── Time range controls ─── */}
       <div
         className="flex gap-1"
-        /* a11y: role="group" groups the time range buttons for screen readers */
-        role="group"
-        /* a11y: aria-label provides context for the time range button group */
+        /* a11y: role="tablist" with role="tab" children and aria-selected — per CHANGE 5, never plain buttons for timeframe switching */
+        role="tablist"
+        /* a11y: aria-label provides context for the time range tablist */
         aria-label="Chart time range"
       >
-        {timeRanges.map((range) => (
-          <button
-            key={range}
-            type="button"
-            /* a11y: aria-pressed indicates which time range is currently selected */
-            aria-pressed={activeRange === range}
-            onClick={() => {
-              setActiveRange(range);
-              announce(`${range === "All" ? "All time" : range} selected. Chart updated.`, "polite");
-            }}
-            className={[
-              "min-h-[44px] min-w-[44px] px-3 py-2",
-              "rounded-md text-sm font-medium",
-              "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
-              activeRange === range
-                ? "bg-action-primary text-inverse"
-                : "text-secondary hover:bg-surface-sunken",
-            ].join(" ")}
-          >
-            {range}
-          </button>
-        ))}
+        {timeRanges.map((range, index) => {
+          const isActive = activeRange === range;
+          return (
+            <button
+              key={range}
+              type="button"
+              /* a11y: role="tab" identifies each control as a tab within the tablist */
+              role="tab"
+              /* a11y: aria-selected indicates which time range tab is currently active */
+              aria-selected={isActive}
+              /* a11y: tabIndex management — only active tab in tab order; others via arrow keys */
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => {
+                setActiveRange(range);
+                announce(`${range === "All" ? "All time" : range} selected. Chart updated.`, "polite");
+              }}
+              onKeyDown={(e) => {
+                let nextIndex = index;
+                if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  nextIndex = (index + 1) % timeRanges.length;
+                } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  nextIndex = (index - 1 + timeRanges.length) % timeRanges.length;
+                } else {
+                  return;
+                }
+                setActiveRange(timeRanges[nextIndex]);
+                announce(`${timeRanges[nextIndex] === "All" ? "All time" : timeRanges[nextIndex]} selected. Chart updated.`, "polite");
+                /* Move focus to the newly active tab */
+                const parent = e.currentTarget.parentElement;
+                if (parent) {
+                  const buttons = parent.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+                  buttons[nextIndex]?.focus();
+                }
+              }}
+              className={[
+                "min-h-[44px] min-w-[44px] px-3 py-2",
+                "rounded-md text-sm font-medium",
+                "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+                isActive
+                  ? "bg-action-primary text-inverse"
+                  : "text-secondary hover:bg-surface-sunken",
+              ].join(" ")}
+            >
+              {range}
+            </button>
+          );
+        })}
       </div>
 
       {/* ─── Live region for announcements ─── */}

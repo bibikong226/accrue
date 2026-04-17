@@ -106,8 +106,8 @@ export default function TickerStrip() {
             : "none",
         }}
       >
-        {/* Duplicate entries for seamless loop */}
-        {[...entries, ...entries].map((entry, i) => {
+        {/* Primary entries — accessible to screen readers */}
+        {entries.map((entry, i) => {
           const isUp = entry.dayChange >= 0;
           const arrow = isUp ? "\u25B2" : "\u25BC";
           const changeColor = isUp ? "text-green-400" : "text-red-400";
@@ -136,6 +136,34 @@ export default function TickerStrip() {
             </Link>
           );
         })}
+        {/* a11y: Duplicate set for seamless CSS loop animation — aria-hidden to prevent duplicate screen reader announcements */}
+        <span aria-hidden="true" className="contents">
+          {entries.map((entry, i) => {
+            const isUp = entry.dayChange >= 0;
+            const arrow = isUp ? "\u25B2" : "\u25BC";
+            const changeColor = isUp ? "text-green-400" : "text-red-400";
+
+            return (
+              <Link
+                key={`${entry.symbol}-dup-${i}`}
+                href={entry.href}
+                tabIndex={-1}
+                className={`inline-flex items-center gap-1.5 px-3 h-full text-[11px] text-gray-200 hover:bg-gray-800 transition-colors ${
+                  entry.isHolding ? "border-l-2 border-l-cyan-400" : ""
+                }`}
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                <span className="font-medium text-white">
+                  {entry.displayName}
+                </span>
+                <span>{formatTickerPrice(entry.price)}</span>
+                <span className={changeColor}>
+                  {arrow} {formatChange(entry.dayChange)} ({formatChangePercent(entry.dayChangePercent)})
+                </span>
+              </Link>
+            );
+          })}
+        </span>
       </div>
 
       {/* CSS animation keyframes injected via style tag */}

@@ -67,7 +67,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Primary Navigation */}
             <nav id="primary-nav" aria-label="Primary">
-              <ul className="flex items-center gap-1">
+              {/* a11y: role="list" restores list semantics that some CSS resets strip from styled <ul> elements */}
+              <ul role="list" className="flex items-center gap-1">
                 {NAV_ITEMS.map((item) => {
                   const isActive =
                     pathname === item.href ||
