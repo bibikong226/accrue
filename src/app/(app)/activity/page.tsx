@@ -169,17 +169,12 @@ function ActivityCard({ item }: { item: ActivityItem }) {
         aria-label={`${item.title}, ${dateFormatted}. ${item.subtitle}`}
       >
         {/* Card header -- always visible */}
-        <div
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           aria-expanded={expanded}
           aria-controls={detailsId}
           onClick={toggleExpanded}
-          onKeyDown={handleKeyDown}
-          className={[
-            "p-4 cursor-pointer min-h-[80px] flex flex-col justify-between",
-            "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded",
-          ].join(" ")}
+          className="p-4 cursor-pointer min-h-[80px] flex flex-col justify-between w-full text-left focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded"
         >
           <div>
             {/* Header row */}
@@ -217,7 +212,7 @@ function ActivityCard({ item }: { item: ActivityItem }) {
               {expanded ? "Collapse" : "Expand"} {expanded ? "\u25B2" : "\u25BC"}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Expanded details */}
         {expanded && (

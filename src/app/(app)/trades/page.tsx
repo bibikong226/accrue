@@ -113,18 +113,14 @@ function TradeCard({ entry }: { entry: TradeEntry }) {
         aria-label={`${actionLabel} ${entry.symbol}, ${dateFormatted}. ${entry.thesis}`}
       >
         {/* ─── Card Header (always visible, ~160px card height) ─── */}
-        <div
-          className="p-4 cursor-pointer min-h-[160px] flex flex-col justify-between"
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
+          className="p-4 cursor-pointer min-h-[160px] flex flex-col justify-between w-full text-left focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded"
           aria-expanded={expanded}
           aria-controls={detailsId}
           onClick={toggleExpanded}
-          onKeyDown={handleKeyDown}
-          /* Focus styling per CLAUDE.md A1.5 */
-          style={{ outline: "none" }}
         >
-          <div className="focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded">
+          <div>
             {/* Header row */}
             <div className="flex items-center gap-2 flex-wrap">
               <span
@@ -183,7 +179,7 @@ function TradeCard({ entry }: { entry: TradeEntry }) {
               {expanded ? "\u25B2" : "\u25BC"}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* ─── Expanded Details ─── */}
         {expanded && (
