@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { announce } from "@/lib/a11y/useAnnouncer";
 
 /* ─── Step definitions ─── */
-const STEP_COUNT = 7;
+const STEP_COUNT = 8;
 
 const STEP_LABELS = [
   "Welcome",
   "Investment Experience",
   "Financial Goals",
+  "Emergency Fund",
   "Risk Tolerance",
   "Time Horizon",
   "Reaction to Loss",
@@ -23,6 +24,7 @@ interface OnboardingData {
   experience: string;
   goal: string;
   goalAmount: string;
+  emergencyFund: string;
   riskTolerance: string;
   timeHorizon: string;
   lossReaction: string;
@@ -34,6 +36,7 @@ const defaultData: OnboardingData = {
   experience: "",
   goal: "",
   goalAmount: "",
+  emergencyFund: "",
   riskTolerance: "",
   timeHorizon: "",
   lossReaction: "",
@@ -104,18 +107,22 @@ export default function OnboardingPage() {
         if (!data.goal) errs.goal = "Please select a financial goal.";
         break;
       case 3:
+        if (!data.emergencyFund)
+          errs.emergencyFund = "Please select your emergency fund status.";
+        break;
+      case 4:
         if (!data.riskTolerance)
           errs.riskTolerance = "Please select your risk tolerance.";
         break;
-      case 4:
+      case 5:
         if (!data.timeHorizon)
           errs.timeHorizon = "Please select your investment time horizon.";
         break;
-      case 5:
+      case 6:
         if (!data.lossReaction)
           errs.lossReaction = "Please select how you would react to a loss.";
         break;
-      case 6:
+      case 7:
         if (!data.agreeToTerms)
           errs.agreeToTerms =
             "Please agree to the terms to continue.";
@@ -396,8 +403,94 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {/* Step 3: Risk Tolerance (Q4) */}
+        {/* Step 3: Emergency Fund */}
         {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-primary mb-4">
+              Emergency Fund
+            </h2>
+            <fieldset>
+              <legend className="text-sm font-semibold text-primary mb-3">
+                Do you have an emergency fund?{" "}
+                <span aria-hidden="true">*</span>
+                <span className="sr-only">(required)</span>
+              </legend>
+              <div className="space-y-2">
+                {[
+                  {
+                    value: "yes",
+                    label: "Yes, I have 3+ months saved",
+                    desc: "I have enough savings to cover at least 3 months of living expenses.",
+                  },
+                  {
+                    value: "working",
+                    label: "I'm working on it",
+                    desc: "I am building my emergency fund but have not reached 3 months yet.",
+                  },
+                  {
+                    value: "no",
+                    label: "No, not yet",
+                    desc: "I do not currently have a dedicated emergency fund.",
+                  },
+                ].map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`flex items-start gap-3 p-3 min-h-[44px] rounded-md border cursor-pointer focus-within:outline-3 focus-within:outline-focus-ring focus-within:outline-offset-2 ${
+                      data.emergencyFund === opt.value
+                        ? "border-action-primary bg-green-50"
+                        : "border-border-default hover:bg-surface-sunken"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="emergencyFund"
+                      value={opt.value}
+                      checked={data.emergencyFund === opt.value}
+                      onChange={(e) =>
+                        updateField("emergencyFund", e.target.value)
+                      }
+                      className="mt-1"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-primary">
+                        {opt.label}
+                      </span>
+                      <p className="text-xs text-muted">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {errors.emergencyFund && (
+                <p
+                  className="text-sm text-feedback-error mt-2"
+                  role="alert"
+                >
+                  {errors.emergencyFund}
+                </p>
+              )}
+            </fieldset>
+
+            {/* Gentle guidance when user selects "No" */}
+            {data.emergencyFund === "no" && (
+              <div
+                className="mt-4 p-3 border-2 border-feedback-warning rounded-md bg-yellow-50"
+                role="status"
+              >
+                <p className="text-sm text-primary font-medium mb-1">
+                  A note before you continue
+                </p>
+                <p className="text-xs text-secondary">
+                  We&apos;d suggest building an emergency fund first &mdash; it
+                  protects you if something unexpected happens. You can still
+                  continue, but we&apos;ll recommend conservative options.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Step 4: Risk Tolerance (Q4) */}
+        {step === 4 && (
           <>
             <h2 className="text-lg font-semibold text-primary mb-4">
               Risk Tolerance
@@ -469,8 +562,8 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {/* Step 4: Time Horizon */}
-        {step === 4 && (
+        {/* Step 5: Time Horizon */}
+        {step === 5 && (
           <>
             <h2 className="text-lg font-semibold text-primary mb-4">
               Time Horizon
@@ -538,8 +631,8 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {/* Step 5: Reaction to Loss (Q5 — compared with Q4 for inconsistency) */}
-        {step === 5 && (
+        {/* Step 6: Reaction to Loss (Q5 — compared with Q4 for inconsistency) */}
+        {step === 6 && (
           <>
             <h2 className="text-lg font-semibold text-primary mb-4">
               Reaction to Loss
@@ -628,8 +721,8 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {/* Step 6: Copilot Introduction */}
-        {step === 6 && (
+        {/* Step 7: Copilot Introduction */}
+        {step === 7 && (
           <>
             <h2 className="text-lg font-semibold text-primary mb-4">
               Meet the AI Copilot

@@ -619,7 +619,7 @@ export default function ResearchDetailPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <caption className="text-left text-sm text-muted mb-2">
-                  Quarterly earnings results showing EPS estimates versus actual
+                  Quarterly earnings results showing <abbr title="Earnings Per Share">EPS</abbr> estimates versus actual
                   results
                 </caption>
                 <thead>
@@ -640,13 +640,13 @@ export default function ResearchDetailPage() {
                       scope="col"
                       className="text-right py-2 pr-4 font-semibold text-primary"
                     >
-                      EPS Estimate
+                      <abbr title="Earnings Per Share">EPS</abbr> Estimate
                     </th>
                     <th
                       scope="col"
                       className="text-right py-2 pr-4 font-semibold text-primary"
                     >
-                      EPS Actual
+                      <abbr title="Earnings Per Share">EPS</abbr> Actual
                     </th>
                     <th
                       scope="col"

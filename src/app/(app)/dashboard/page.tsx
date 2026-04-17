@@ -142,6 +142,7 @@ const followUpChips = [
 
 export default function DashboardPage() {
   const [whatChangedDismissed, setWhatChangedDismissed] = useState(false);
+  const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("marketValue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -423,26 +424,89 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Lever cards for off-track */}
+          {/* Milestone strip per § 6.1 */}
+          {!milestoneDismissed && (() => {
+            let milestoneMessage: string | null = null;
+            if (goalProgress >= 100) {
+              milestoneMessage = "You did it. What's next?";
+            } else if (goalProgress >= 75) {
+              milestoneMessage = `75% there. ${formatPercent(portfolioSummary.annualGoal - portfolioSummary.totalGainLossPercent)}% to go.`;
+            } else if (goalProgress >= 50) {
+              milestoneMessage = "You hit 50% of your goal.";
+            } else if (goalProgress >= 25) {
+              milestoneMessage = "You're 25% to your goal.";
+            }
+
+            if (!milestoneMessage) return null;
+
+            return (
+              <div
+                className="mb-4 p-3 bg-surface-sunken rounded-md flex items-center justify-between"
+                role="status"
+              >
+                <p className="text-sm font-medium text-primary">
+                  {milestoneMessage}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMilestoneDismissed(true);
+                    announce("Milestone message dismissed", "polite");
+                  }}
+                  aria-label="Dismiss milestone message"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-surface-base focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 flex-shrink-0 ml-2"
+                >
+                  <span aria-hidden="true">&#10005;</span>
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Lever cards for off-track — three actionable options per § 3.5 */}
           {goalStatus !== "on-track" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="border border-border-default rounded-md p-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px]"
+                onClick={() =>
+                  announce("Increase monthly contribution option selected. This is a prototype action.", "polite")
+                }
+              >
                 <h3 className="text-sm font-semibold text-primary">
-                  Increase Contributions
+                  Add $45/mo
                 </h3>
-                <p className="text-xs text-secondary mt-1">
-                  Adding $200/month could help you reach your goal by year-end.
+                <p className="text-xs text-gain font-medium mt-1">
+                  &rarr; On track
                 </p>
-              </div>
-              <div className="border border-border-default rounded-md p-3">
+              </button>
+              <button
+                type="button"
+                className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px]"
+                onClick={() =>
+                  announce("Extend timeline option selected. This is a prototype action.", "polite")
+                }
+              >
                 <h3 className="text-sm font-semibold text-primary">
-                  Review Allocation
+                  Extend by 7 months
                 </h3>
-                <p className="text-xs text-secondary mt-1">
-                  Your bond allocation may be dragging returns. Consider your
-                  risk tolerance.
+                <p className="text-xs text-gain font-medium mt-1">
+                  &rarr; On track
                 </p>
-              </div>
+              </button>
+              <button
+                type="button"
+                className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px]"
+                onClick={() =>
+                  announce("One-time deposit option selected. This is a prototype action.", "polite")
+                }
+              >
+                <h3 className="text-sm font-semibold text-primary">
+                  One-time $1,200
+                </h3>
+                <p className="text-xs text-gain font-medium mt-1">
+                  &rarr; On track
+                </p>
+              </button>
             </div>
           )}
         </div>
@@ -685,7 +749,7 @@ export default function DashboardPage() {
                             </div>
                             <div>
                               <dt className="text-muted font-medium">
-                                P/E Ratio
+                                <abbr title="Price-to-Earnings Ratio">P/E</abbr> Ratio
                               </dt>
                               <dd className="tabular-nums text-primary">
                                 {h.peRatio ?? "N/A"}

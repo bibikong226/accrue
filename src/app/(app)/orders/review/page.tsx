@@ -447,7 +447,8 @@ function ReviewContent() {
         )}
       </div>
 
-      {/* ─── Cancel + Confirm (equal prominence) ─── */}
+      {/* ─── Cancel + Confirm (equal prominence per § 4.1) ─── */}
+      {/* Both buttons share identical dimensions, border weight, font, and contrast. */}
       <div className="flex gap-4 mb-6">
         <Link
           href="/orders"
@@ -462,8 +463,8 @@ function ReviewContent() {
           aria-disabled={!acknowledged}
           className={`flex-1 inline-flex items-center justify-center min-h-[48px] px-6 py-3 rounded-md border-2 font-semibold text-base focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${
             acknowledged
-              ? "border-action-primary bg-action-primary text-inverse hover:bg-action-primary-hover"
-              : "border-border-default bg-surface-sunken text-muted cursor-not-allowed"
+              ? "border-border-strong text-primary hover:bg-surface-sunken"
+              : "border-border-default text-muted cursor-not-allowed"
           }`}
         >
           Confirm Order

@@ -410,6 +410,9 @@ function OrdersPageContent() {
           >
             Order Type
           </label>
+          <p className="text-sm text-muted mb-2">
+            Not sure? Market orders work for most first-time buys on liquid stocks.
+          </p>
           <select
             id="order-type"
             value={orderType}
