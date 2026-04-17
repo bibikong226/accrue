@@ -30,6 +30,8 @@ export interface CopilotResponse {
   timestamp: string;
   /** Optional: if true, this was a proactive card, not a user-initiated query */
   isProactive?: boolean;
+  /** Suggested follow-up questions the user can tap/click to continue the conversation */
+  followUpSuggestions?: string[];
 }
 
 /**

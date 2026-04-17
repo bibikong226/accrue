@@ -3,9 +3,9 @@
 /* ============================================================
    Accrue Design System — § 11
 
-   High-contrast, sharp geometry. Classic green/red done right
-   with redundant encoding (arrow + sign + color).
-   Inter + JetBrains Mono + Source Serif 4.
+   High-contrast, sharp geometry. ELECTRIC CYAN signature accent.
+   Classic green/red done right with redundant encoding
+   (arrow + sign + color). Inter + JetBrains Mono + Source Serif 4.
 
    CRITICAL: @theme uses direct hex values, NEVER var() refs.
    var() inside @theme creates circular references that break
@@ -14,7 +14,7 @@
 
 @theme {
   /* ── Surfaces (Light) § 11.3 ── */
-  --color-surface-canvas: #FAFAFA;
+  --color-surface-canvas: #F7F8FA;
   --color-surface-raised: #FFFFFF;
   --color-surface-overlay: #FFFFFF;
   --color-surface-pressed: #F4F4F5;
@@ -31,14 +31,18 @@
   --color-border-default: #D4D4D8;
   --color-border-strong: #A1A1AA;
 
-  /* ── Focus — brand blue, 3px outline § 11.12 ── */
-  --color-focus-ring: #2563EB;
+  /* ── Focus — electric cyan, 3px outline § 11.12 ── */
+  --color-focus-ring: #0891B2;
 
-  /* ── Actions — electric blue § 11.3 ── */
-  --color-action-primary: #2563EB;
-  --color-action-primary-hover: #1D4ED8;
-  --color-action-ghost-fg: #2563EB;
-  --color-action-ghost-hover: #EFF6FF;
+  /* ── Accent — electric cyan § 11.3 ── */
+  --color-accent: #0891B2;
+  --color-accent-hover: #0E7490;
+
+  /* ── Actions — dark neutral primary § 11.3 ── */
+  --color-action-primary: #111827;
+  --color-action-primary-hover: #18181B;
+  --color-action-ghost-fg: #0891B2;
+  --color-action-ghost-hover: #ECFEFF;
   --color-action-destructive: #B91C1C;
   --color-action-destructive-hover: #991B1B;
 
@@ -59,7 +63,7 @@
   --color-ai-moderate: #1E40AF;
   --color-ai-low: #B45309;
   --color-ai-badge-bg: #18181B;
-  --color-ai-badge-fg: #FFFFFF;
+  --color-ai-badge-fg: #22D3EE;
 
   /* ── Typography § 11.2 ── */
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -76,17 +80,17 @@
   top: 0;
   padding: 12px 24px;
   background: #FFFFFF;
-  color: #2563EB;
+  color: #0891B2;
   font-weight: 600;
   font-size: 14px;
   text-decoration: underline;
-  border: 2px solid #2563EB;
+  border: 2px solid #0891B2;
   border-radius: 0 0 8px 0;
   z-index: 9999;
 }
 .skip-link:focus {
   left: 0;
-  outline: 3px solid #2563EB;
+  outline: 3px solid #0891B2;
   outline-offset: 2px;
 }
 
@@ -112,13 +116,20 @@
   font-feature-settings: "tnum" 1, "lnum" 1, "ss01" 1;
 }
 
+/* Tabular class per § 11.3 — slashed-zero for financial clarity */
+.tabular, [data-tabular="true"] {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums lining-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1, "ss01" 1;
+}
+
 /* ============================================================
    Focus — § 11.12
-   3px solid brand blue, 2px offset. ALWAYS visible.
+   3px solid electric cyan, 2px offset. ALWAYS visible.
    ============================================================ */
 :focus { outline: none; }
 :focus-visible {
-  outline: 3px solid #2563EB;
+  outline: 3px solid #0891B2;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -158,12 +169,12 @@ body {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  background: #FAFAFA;
+  background: #F7F8FA;
   color: #18181B;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #2563EB;
+  background: #0891B2;
   color: #FFFFFF;
 }
