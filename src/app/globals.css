@@ -3,60 +3,62 @@
 @import "../styles/forced-colors.css";
 
 /* ============================================================
-   Tailwind theme mapping — maps CSS variables to Tailwind classes
+   Tailwind v4 theme — actual color values, NOT var() references.
+   The @theme block declares Tailwind utility values directly.
+   tokens.css provides :root variables for manual CSS usage.
    ============================================================ */
 @theme {
-  /* Surfaces */
-  --color-surface-base: var(--color-surface-base);
-  --color-surface-raised: var(--color-surface-raised);
-  --color-surface-overlay: var(--color-surface-overlay);
-  --color-surface-sunken: var(--color-surface-sunken);
+  /* Surfaces — Accrue § 11.3 */
+  --color-surface-base: #F5F2EB;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-overlay: #FFFFFF;
+  --color-surface-sunken: #ECE8DD;
 
-  /* Text */
-  --color-primary: var(--color-text-primary);
-  --color-secondary: var(--color-text-secondary);
-  --color-muted: var(--color-text-muted);
-  --color-inverse: var(--color-text-inverse);
+  /* Text — Ink system § 11.3 */
+  --color-primary: #1A1F25;
+  --color-secondary: #4A5568;
+  --color-muted: #718096;
+  --color-inverse: #FFFFFF;
 
   /* Borders */
-  --color-border-default: var(--color-border-default);
-  --color-border-strong: var(--color-border-strong);
+  --color-border-default: #D4CFC4;
+  --color-border-strong: #A39E93;
 
-  /* Focus */
-  --color-focus-ring: var(--color-focus-ring);
+  /* Focus — strong blue for maximum visibility */
+  --color-focus-ring: #2563EB;
 
-  /* Actions */
-  --color-action-primary: var(--color-action-primary);
-  --color-action-primary-hover: var(--color-action-primary-hover);
-  --color-action-destructive: var(--color-action-destructive);
-  --color-action-destructive-hover: var(--color-action-destructive-hover);
+  /* Actions — Meridian Sage § 11.3 */
+  --color-action-primary: #4A7C59;
+  --color-action-primary-hover: #3D6A4B;
+  --color-action-destructive: #C2410C;
+  --color-action-destructive-hover: #A93A0B;
 
   /* Feedback */
-  --color-feedback-success: var(--color-feedback-success);
-  --color-feedback-error: var(--color-feedback-error);
-  --color-feedback-warning: var(--color-feedback-warning);
-  --color-feedback-info: var(--color-feedback-info);
+  --color-feedback-success: #2F7D4F;
+  --color-feedback-error: #C2410C;
+  --color-feedback-warning: #C68C3C;
+  --color-feedback-info: #2563EB;
 
-  /* Financial signals */
-  --color-gain: var(--color-gain);
-  --color-loss: var(--color-loss);
+  /* Financial signals — Verdant / Vermillion § 11.3 */
+  --color-gain: #2F7D4F;
+  --color-loss: #C2410C;
 
-  /* AI Confidence */
-  --color-ai-confidence-high: var(--color-ai-confidence-high);
-  --color-ai-confidence-medium: var(--color-ai-confidence-medium);
-  --color-ai-confidence-low: var(--color-ai-confidence-low);
+  /* AI Confidence § 2.8 */
+  --color-ai-confidence-high: #2F7D4F;
+  --color-ai-confidence-medium: #2563EB;
+  --color-ai-confidence-low: #C68C3C;
 
   /* Typography */
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --font-serif: var(--font-serif);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
+  --font-serif: Georgia, "Times New Roman", serif;
 }
 
 /* ============================================================
    Base styles
    ============================================================ */
 
-/* Skip links — sr-only by default, visible on focus */
+/* Skip links — sr-only by default, visible on focus per § 12.1 */
 .skip-links {
   position: absolute;
   top: 0;
@@ -69,19 +71,19 @@
   left: -9999px;
   top: 0;
   padding: 12px 24px;
-  background: var(--color-surface-raised);
-  color: var(--color-action-primary);
+  background: #FFFFFF;
+  color: #4A7C59;
   font-weight: 600;
   font-size: 14px;
   text-decoration: underline;
-  border: 2px solid var(--color-focus-ring);
+  border: 2px solid #2563EB;
   border-radius: 0 0 8px 0;
   z-index: 9999;
 }
 
 .skip-link:focus {
   left: 0;
-  outline: 3px solid var(--color-focus-ring);
+  outline: 3px solid #2563EB;
   outline-offset: 2px;
 }
 
@@ -100,7 +102,7 @@
 
 /* Focus ring utility */
 .focus-ring {
-  outline: 3px solid var(--color-focus-ring);
+  outline: 3px solid #2563EB;
   outline-offset: 2px;
 }
 
@@ -111,7 +113,7 @@
 }
 
 /* ============================================================
-   Reduced motion
+   Reduced motion — § 11.7
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -128,31 +130,15 @@
    Selection
    ============================================================ */
 ::selection {
-  background: var(--color-action-primary);
-  color: var(--color-text-inverse);
-}
-
-/* ============================================================
-   Scrollbar (subtle)
-   ============================================================ */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-surface-base);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-border-default);
-  border-radius: 4px;
+  background: #4A7C59;
+  color: #FFFFFF;
 }
 
 /* ============================================================
    Body defaults
    ============================================================ */
 body {
-  font-family: var(--font-sans);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -160,15 +146,15 @@ body {
 }
 
 /* ============================================================
-   Focus visible — global focus styles
+   Focus visible — global focus styles per § 12.4
    Never outline: none without a replacement.
    ============================================================ */
 :focus-visible {
-  outline: 3px solid var(--color-focus-ring);
+  outline: 3px solid #2563EB;
   outline-offset: 2px;
 }
 
-/* Remove focus ring for mouse users */
+/* Remove focus ring for mouse users only */
 :focus:not(:focus-visible) {
   outline: none;
 }
