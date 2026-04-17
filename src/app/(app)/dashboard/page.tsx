@@ -5,7 +5,6 @@ import {
   portfolioSummary,
   holdings,
   type Holding,
-  generatePriceHistory,
 } from "@/data/mockPortfolio";
 import ChartWrapper from "@/components/chart/ChartWrapper";
 import AIResponse from "@/components/copilot/AIResponse";
@@ -146,7 +145,6 @@ const followUpChips = [
 ];
 
 export default function DashboardPage() {
-  const [chartRange, setChartRange] = useState<"1W" | "1M" | "3M" | "1Y" | "All">("1M");
   const [whatChangedDismissed, setWhatChangedDismissed] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("marketValue");
@@ -424,6 +422,9 @@ export default function DashboardPage() {
           <ChartWrapper
             data={holdings[0].priceHistory}
             title={`Portfolio ${portfolioSummary.totalGainLossPercent >= 0 ? "up" : "down"} ${Math.abs(portfolioSummary.totalGainLossPercent).toFixed(1)}% overall`}
+            defaultTimeframe="1M"
+            size="md"
+            showAICard={false}
           />
         </div>
       </section>

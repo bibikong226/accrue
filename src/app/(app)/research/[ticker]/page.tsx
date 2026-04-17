@@ -311,6 +311,10 @@ export default function ResearchDetailPage() {
           <ChartWrapper
             data={holding.priceHistory}
             title={`${ticker} Price`}
+            ticker={ticker}
+            defaultTimeframe="1M"
+            size="md"
+            showAICard={true}
           />
           <p className="text-xs text-muted mt-2">
             {holding.currentPrice > holding.averageCost
