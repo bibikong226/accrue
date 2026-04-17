@@ -1,26 +1,174 @@
 @import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/forced-colors.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Tailwind theme mapping — maps CSS variables to Tailwind classes
+   ============================================================ */
+@theme {
+  /* Surfaces */
+  --color-surface-base: var(--color-surface-base);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-overlay: var(--color-surface-overlay);
+  --color-surface-sunken: var(--color-surface-sunken);
+
+  /* Text */
+  --color-primary: var(--color-text-primary);
+  --color-secondary: var(--color-text-secondary);
+  --color-muted: var(--color-text-muted);
+  --color-inverse: var(--color-text-inverse);
+
+  /* Borders */
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+
+  /* Focus */
+  --color-focus-ring: var(--color-focus-ring);
+
+  /* Actions */
+  --color-action-primary: var(--color-action-primary);
+  --color-action-primary-hover: var(--color-action-primary-hover);
+  --color-action-destructive: var(--color-action-destructive);
+  --color-action-destructive-hover: var(--color-action-destructive-hover);
+
+  /* Feedback */
+  --color-feedback-success: var(--color-feedback-success);
+  --color-feedback-error: var(--color-feedback-error);
+  --color-feedback-warning: var(--color-feedback-warning);
+  --color-feedback-info: var(--color-feedback-info);
+
+  /* Financial signals */
+  --color-gain: var(--color-gain);
+  --color-loss: var(--color-loss);
+
+  /* AI Confidence */
+  --color-ai-confidence-high: var(--color-ai-confidence-high);
+  --color-ai-confidence-medium: var(--color-ai-confidence-medium);
+  --color-ai-confidence-low: var(--color-ai-confidence-low);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ============================================================
+   Base styles
+   ============================================================ */
+
+/* Skip links — sr-only by default, visible on focus */
+.skip-links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  padding: 12px 24px;
+  background: var(--color-surface-raised);
+  color: var(--color-action-primary);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: underline;
+  border: 2px solid var(--color-focus-ring);
+  border-radius: 0 0 8px 0;
+  z-index: 9999;
+}
+
+.skip-link:focus {
+  left: 0;
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Screen reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus ring utility */
+.focus-ring {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Tabular lining figures for financial numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
+/* ============================================================
+   Selection
+   ============================================================ */
+::selection {
+  background: var(--color-action-primary);
+  color: var(--color-text-inverse);
+}
+
+/* ============================================================
+   Scrollbar (subtle)
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: 4px;
+}
+
+/* ============================================================
+   Body defaults
+   ============================================================ */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Focus visible — global focus styles
+   Never outline: none without a replacement.
+   ============================================================ */
+:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Remove focus ring for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
 }

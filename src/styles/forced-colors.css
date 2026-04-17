@@ -1,0 +1,113 @@
+/* ============================================================
+   Forced Colors (Windows High Contrast) overrides
+   Per § 11.1 and § 12.5 — every component audited under forced-colors.
+   ============================================================ */
+
+@media (forced-colors: active) {
+  /* Borders fall back to system CanvasText */
+  *,
+  *::before,
+  *::after {
+    border-color: CanvasText !important;
+  }
+
+  /* Backgrounds fall back to Canvas */
+  body,
+  main,
+  header,
+  footer,
+  aside,
+  section,
+  article {
+    background-color: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  /* Focus indicators use Highlight */
+  :focus-visible {
+    outline-color: Highlight !important;
+  }
+
+  /* Buttons use ButtonText on ButtonFace */
+  button,
+  [role="button"] {
+    background-color: ButtonFace !important;
+    color: ButtonText !important;
+    border: 1px solid ButtonText !important;
+  }
+
+  button:hover,
+  [role="button"]:hover {
+    background-color: Highlight !important;
+    color: HighlightText !important;
+  }
+
+  /* Links use LinkText */
+  a {
+    color: LinkText !important;
+  }
+
+  /* Gain/loss signals — rely on text signs (+/−), not color */
+  [data-signal="gain"],
+  [data-signal="loss"] {
+    color: CanvasText !important;
+  }
+
+  /* Chart elements */
+  svg line,
+  svg path,
+  svg rect,
+  svg circle {
+    stroke: CanvasText !important;
+  }
+
+  svg text {
+    fill: CanvasText !important;
+  }
+
+  /* Tables */
+  table,
+  th,
+  td {
+    border-color: CanvasText !important;
+  }
+
+  th {
+    background-color: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  /* Form elements */
+  input,
+  select,
+  textarea {
+    background-color: Field !important;
+    color: FieldText !important;
+    border-color: CanvasText !important;
+  }
+
+  /* Disabled elements */
+  [disabled],
+  [aria-disabled="true"] {
+    color: GrayText !important;
+    border-color: GrayText !important;
+  }
+
+  /* Confidence indicators — text only, no color coding */
+  [data-confidence] {
+    border-color: CanvasText !important;
+  }
+
+  /* Progress bars */
+  progress {
+    border: 1px solid CanvasText !important;
+  }
+
+  progress::-webkit-progress-bar {
+    background-color: Canvas !important;
+  }
+
+  progress::-webkit-progress-value {
+    background-color: Highlight !important;
+  }
+}
