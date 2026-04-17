@@ -8,6 +8,7 @@ import { formatDate, formatCurrency } from "@/lib/format";
 import { announce } from "@/lib/a11y/useAnnouncer";
 import { fixturesById } from "@/data/copilotFixtures";
 import AIResponse from "@/components/copilot/AIResponse";
+import Tabs from "@/components/ui/Tabs";
 
 /* ─── Unified activity item types ─── */
 
@@ -426,235 +427,216 @@ export default function ActivityPage() {
         Unified timeline of trades, dividends, and AI insights.
       </p>
 
-      {/* ─── Tab switcher: Timeline / Patterns ─── */}
-      <div
-        role="tablist"
-        aria-label="Activity view"
-        className="flex gap-1 rounded-lg bg-surface-sunken p-1 w-fit mb-6"
-      >
-        {([
-          { key: "timeline" as const, label: "Timeline" },
-          { key: "table" as const, label: "Table" },
-          { key: "patterns" as const, label: "Patterns" },
-        ]).map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              /* a11y: aria-selected indicates which tab is currently active */
-              aria-selected={isActive}
-              tabIndex={isActive ? 0 : -1}
-              onClick={() => {
-                setActiveTab(tab.key);
-                announce(`${tab.label} tab selected`, "polite");
-              }}
-              className={[
-                "min-h-[44px] min-w-[44px] px-4 py-2",
-                "rounded-md text-sm font-medium",
-                "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
-                isActive
-                  ? "bg-surface-raised text-primary shadow-sm"
-                  : "text-muted hover:text-secondary",
-              ].join(" ")}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* ─── Tab switcher: Timeline / Table / Patterns ─── */}
+      <div className="mb-6">
+        <Tabs
+          label="Activity view"
+          value={activeTab}
+          onChange={(id) => {
+            setActiveTab(id as ActiveTab);
+            announce(`${id.charAt(0).toUpperCase() + id.slice(1)} tab selected`, "polite");
+          }}
+          tabs={[
+            {
+              id: "timeline",
+              label: "Timeline",
+              content: (
+                <>
+                  {/* Filter chips */}
+                  <section aria-labelledby="activity-filter-heading" className="mb-6 mt-4">
+                    <h2 id="activity-filter-heading" className="sr-only">
+                      Filter activity
+                    </h2>
+                    <div
+                      className="flex flex-wrap gap-2"
+                      role="radiogroup"
+                      aria-labelledby="activity-filter-heading"
+                    >
+                      {FILTER_CHIPS.map((chip) => {
+                        const isActive = activeFilter === chip.value;
+                        return (
+                          <button
+                            key={chip.value}
+                            role="radio"
+                            aria-checked={isActive}
+                            onClick={() => handleFilterChange(chip.value)}
+                            className={`min-h-[44px] min-w-[44px] px-4 py-2 rounded-full text-sm font-medium focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${
+                              isActive
+                                ? "bg-action-primary text-inverse"
+                                : "bg-surface-raised border border-border-default text-secondary hover:bg-surface-sunken"
+                            }`}
+                          >
+                            {chip.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {/* Live region for filter count */}
+                  <div aria-live="polite" className="sr-only">
+                    Showing {filteredItems.length} of {allItems.length} activity items
+                  </div>
+
+                  {/* Activity timeline */}
+                  <section aria-labelledby="activity-timeline-heading">
+                    <h2 id="activity-timeline-heading" className="sr-only">
+                      Activity timeline
+                    </h2>
+
+                    {filteredItems.length === 0 ? (
+                      <div className="bg-surface-raised border border-border-default rounded-lg p-8 text-center">
+                        <p className="text-secondary">
+                          No activity matches the current filter.
+                        </p>
+                      </div>
+                    ) : (
+                      <ol
+                        className="space-y-3"
+                        /* a11y: Semantic ordered list for screen readers -- each item is a list item */
+                        aria-label="Activity timeline, newest first"
+                      >
+                        {filteredItems.map((item) => (
+                          <ActivityCard key={item.id} item={item} />
+                        ))}
+                      </ol>
+                    )}
+                  </section>
+                </>
+              ),
+            },
+            {
+              id: "table",
+              label: "Table",
+              content: (
+                <section aria-labelledby="activity-table-heading" className="mt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 id="activity-table-heading" className="text-lg font-semibold text-primary">
+                      Transaction History
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={handleCsvDownload}
+                      className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-md text-sm font-medium border border-border-default text-secondary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+
+                  {/* a11y: live region for sort announcements */}
+                  <div role="status" className="sr-only" aria-live="polite">
+                    {sortAnnouncement}
+                  </div>
+
+                  <div className="bg-surface-raised border border-border-default rounded-lg overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <caption className="text-left text-sm font-medium text-muted p-4 pb-2">
+                        All transactions showing date, symbol, action, quantity, price per share, total cost, and status. Click column headers to sort.
+                      </caption>
+                      <thead>
+                        <tr className="border-b border-border-default">
+                          {([
+                            { key: "date" as const, label: "Date" },
+                            { key: "symbol" as const, label: "Symbol" },
+                            { key: "type" as const, label: "Action" },
+                            { key: "shares" as const, label: "Quantity" },
+                            { key: "price" as const, label: "Price" },
+                            { key: "total" as const, label: "Total" },
+                            { key: "status" as const, label: "Status" },
+                          ]).map((col) => (
+                            <th key={col.key} scope="col" className="text-left p-3">
+                              <button
+                                type="button"
+                                onClick={() => handleTableSort(col.key)}
+                                aria-sort={tableSortKey === col.key ? tableSortDir : undefined}
+                                className="inline-flex items-center gap-1 min-h-[44px] font-semibold text-primary text-left focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                              >
+                                {col.label}
+                                {tableSortKey === col.key && (
+                                  <span aria-hidden="true">
+                                    {tableSortDir === "ascending" ? " \u25B2" : " \u25BC"}
+                                  </span>
+                                )}
+                              </button>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedTransactions.map((tx) => (
+                          <tr
+                            key={tx.id}
+                            className="border-b border-border-default last:border-0"
+                          >
+                            <td className="p-3 tabular-nums">
+                              <time dateTime={tx.date}>{formatDate(tx.date)}</time>
+                            </td>
+                            <td className="p-3 font-medium text-primary">{tx.symbol}</td>
+                            <td className="p-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                  tx.type === "buy"
+                                    ? "bg-gain-bg text-gain"
+                                    : "bg-loss-bg text-loss"
+                                }`}
+                              >
+                                {tx.type === "buy" ? "Buy" : "Sell"}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right tabular-nums">{tx.shares}</td>
+                            <td className="p-3 text-right tabular-nums">
+                              {formatCurrency(tx.price)}
+                            </td>
+                            <td className="p-3 text-right tabular-nums font-medium">
+                              {formatCurrency(tx.total)}
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  tx.status === "completed"
+                                    ? "bg-gain-bg text-gain"
+                                    : tx.status === "pending"
+                                      ? "bg-[var(--color-feedback-warning)]/15 text-feedback-warning"
+                                      : "bg-surface-sunken text-muted"
+                                }`}
+                              >
+                                {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ),
+            },
+            {
+              id: "patterns",
+              label: "Patterns",
+              content: (
+                <section aria-labelledby="patterns-heading" className="mt-4">
+                  <h2 id="patterns-heading" className="text-lg font-semibold text-primary mb-4">
+                    AI-Identified Cross-Trade Patterns
+                  </h2>
+                  <p className="text-sm text-secondary mb-4">
+                    The AI copilot analyzes your trade history to identify recurring patterns, strengths, and areas for improvement.
+                  </p>
+                  {patternsResponse ? (
+                    <AIResponse response={patternsResponse} />
+                  ) : (
+                    <div className="bg-surface-raised border border-border-default rounded-lg p-6">
+                      <p className="text-secondary text-sm">
+                        Not enough trade history to identify patterns yet. Complete more trades to see AI-generated insights.
+                      </p>
+                    </div>
+                  )}
+                </section>
+              ),
+            },
+          ]}
+        />
       </div>
-
-      {/* ─── Timeline Tab ─── */}
-      {activeTab === "timeline" && (
-        <>
-          {/* Filter chips */}
-          <section aria-labelledby="activity-filter-heading" className="mb-6">
-            <h2 id="activity-filter-heading" className="sr-only">
-              Filter activity
-            </h2>
-            <div
-              className="flex flex-wrap gap-2"
-              role="radiogroup"
-              aria-labelledby="activity-filter-heading"
-            >
-              {FILTER_CHIPS.map((chip) => {
-                const isActive = activeFilter === chip.value;
-                return (
-                  <button
-                    key={chip.value}
-                    role="radio"
-                    aria-checked={isActive}
-                    onClick={() => handleFilterChange(chip.value)}
-                    className={`min-h-[44px] min-w-[44px] px-4 py-2 rounded-full text-sm font-medium focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${
-                      isActive
-                        ? "bg-action-primary text-inverse"
-                        : "bg-surface-raised border border-border-default text-secondary hover:bg-surface-sunken"
-                    }`}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Live region for filter count */}
-          <div aria-live="polite" className="sr-only">
-            Showing {filteredItems.length} of {allItems.length} activity items
-          </div>
-
-          {/* Activity timeline */}
-          <section aria-labelledby="activity-timeline-heading">
-            <h2 id="activity-timeline-heading" className="sr-only">
-              Activity timeline
-            </h2>
-
-            {filteredItems.length === 0 ? (
-              <div className="bg-surface-raised border border-border-default rounded-lg p-8 text-center">
-                <p className="text-secondary">
-                  No activity matches the current filter.
-                </p>
-              </div>
-            ) : (
-              <ol
-                className="space-y-3"
-                /* a11y: Semantic ordered list for screen readers -- each item is a list item */
-                aria-label="Activity timeline, newest first"
-              >
-                {filteredItems.map((item) => (
-                  <ActivityCard key={item.id} item={item} />
-                ))}
-              </ol>
-            )}
-          </section>
-        </>
-      )}
-
-      {/* ─── Table Tab: Transaction History ─── */}
-      {activeTab === "table" && (
-        <section aria-labelledby="activity-table-heading">
-          <div className="flex items-center justify-between mb-4">
-            <h2 id="activity-table-heading" className="text-lg font-semibold text-primary">
-              Transaction History
-            </h2>
-            <button
-              type="button"
-              onClick={handleCsvDownload}
-              className="min-h-[44px] min-w-[44px] px-4 py-2 rounded-md text-sm font-medium border border-border-default text-secondary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-            >
-              Download CSV
-            </button>
-          </div>
-
-          {/* a11y: live region for sort announcements */}
-          <div role="status" className="sr-only" aria-live="polite">
-            {sortAnnouncement}
-          </div>
-
-          <div className="bg-surface-raised border border-border-default rounded-lg overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="text-left text-sm font-medium text-muted p-4 pb-2">
-                All transactions showing date, symbol, action, quantity, price per share, total cost, and status. Click column headers to sort.
-              </caption>
-              <thead>
-                <tr className="border-b border-border-default">
-                  {([
-                    { key: "date" as const, label: "Date" },
-                    { key: "symbol" as const, label: "Symbol" },
-                    { key: "type" as const, label: "Action" },
-                    { key: "shares" as const, label: "Quantity" },
-                    { key: "price" as const, label: "Price" },
-                    { key: "total" as const, label: "Total" },
-                    { key: "status" as const, label: "Status" },
-                  ]).map((col) => (
-                    <th key={col.key} scope="col" className="text-left p-3">
-                      <button
-                        type="button"
-                        onClick={() => handleTableSort(col.key)}
-                        aria-sort={tableSortKey === col.key ? tableSortDir : undefined}
-                        className="inline-flex items-center gap-1 min-h-[44px] font-semibold text-primary text-left focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-                      >
-                        {col.label}
-                        {tableSortKey === col.key && (
-                          <span aria-hidden="true">
-                            {tableSortDir === "ascending" ? " \u25B2" : " \u25BC"}
-                          </span>
-                        )}
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTransactions.map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="border-b border-border-default last:border-0"
-                  >
-                    <td className="p-3 tabular-nums">
-                      <time dateTime={tx.date}>{formatDate(tx.date)}</time>
-                    </td>
-                    <td className="p-3 font-medium text-primary">{tx.symbol}</td>
-                    <td className="p-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                          tx.type === "buy"
-                            ? "bg-gain-bg text-gain"
-                            : "bg-loss-bg text-loss"
-                        }`}
-                      >
-                        {tx.type === "buy" ? "Buy" : "Sell"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right tabular-nums">{tx.shares}</td>
-                    <td className="p-3 text-right tabular-nums">
-                      {formatCurrency(tx.price)}
-                    </td>
-                    <td className="p-3 text-right tabular-nums font-medium">
-                      {formatCurrency(tx.total)}
-                    </td>
-                    <td className="p-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          tx.status === "completed"
-                            ? "bg-gain-bg text-gain"
-                            : tx.status === "pending"
-                              ? "bg-[var(--color-feedback-warning)]/15 text-feedback-warning"
-                              : "bg-surface-sunken text-muted"
-                        }`}
-                      >
-                        {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* ─── Patterns Tab ─── */}
-      {activeTab === "patterns" && (
-        <section aria-labelledby="patterns-heading">
-          <h2 id="patterns-heading" className="text-lg font-semibold text-primary mb-4">
-            AI-Identified Cross-Trade Patterns
-          </h2>
-          <p className="text-sm text-secondary mb-4">
-            The AI copilot analyzes your trade history to identify recurring patterns, strengths, and areas for improvement.
-          </p>
-          {patternsResponse ? (
-            <AIResponse response={patternsResponse} />
-          ) : (
-            <div className="bg-surface-raised border border-border-default rounded-lg p-6">
-              <p className="text-secondary text-sm">
-                Not enough trade history to identify patterns yet. Complete more trades to see AI-generated insights.
-              </p>
-            </div>
-          )}
-        </section>
-      )}
     </>
   );
 }

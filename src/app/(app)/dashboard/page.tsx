@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   portfolioSummary,
   holdings,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import { announce } from "@/lib/a11y/useAnnouncer";
 import { useRouter } from "next/navigation";
+import Tabs from "@/components/ui/Tabs";
 
 /* ─── Constants derived from mock data ─── */
 const todayChange = holdings.reduce(
@@ -151,7 +152,6 @@ export default function DashboardPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [activeNewsTab, setActiveNewsTab] = useState<NewsTab>("Holdings");
-  const newsPanelRef = useRef<HTMLDivElement>(null);
   const [dismissedInsights, setDismissedInsights] = useState<Set<number>>(new Set());
   const [insightQuery, setInsightQuery] = useState("");
   const [leverConfirm, setLeverConfirm] = useState<string | null>(null);
@@ -205,9 +205,6 @@ export default function DashboardPage() {
   const handleNewsTabChange = (tab: NewsTab) => {
     setActiveNewsTab(tab);
     announce(`Showing ${tab} news`, "polite");
-    if (newsPanelRef.current) {
-      newsPanelRef.current.focus();
-    }
   };
 
   const SortButton = ({
@@ -956,106 +953,62 @@ export default function DashboardPage() {
         >
           News Feed
         </h2>
-        <div className="bg-surface-raised border border-border-default rounded-lg">
-          {/* Tabs */}
-          <div
-            role="tablist"
-            aria-label="News categories"
-            className="flex border-b border-border-default px-4"
-          >
-            {newsTabs.map((tab, idx) => (
-              <button
-                key={tab}
-                role="tab"
-                id={`news-tab-${tab}`}
-                aria-selected={activeNewsTab === tab}
-                aria-controls={`news-panel-${tab}`}
-                tabIndex={activeNewsTab === tab ? 0 : -1}
-                onClick={() => handleNewsTabChange(tab)}
-                onKeyDown={(e) => {
-                  const currentIdx = newsTabs.indexOf(tab);
-                  if (e.key === "ArrowRight") {
-                    e.preventDefault();
-                    const nextIdx = (currentIdx + 1) % newsTabs.length;
-                    const nextTab = newsTabs[nextIdx];
-                    const tabButton = document.getElementById(`news-tab-${nextTab}`);
-                    tabButton?.focus();
-                  } else if (e.key === "ArrowLeft") {
-                    e.preventDefault();
-                    const prevIdx =
-                      (currentIdx - 1 + newsTabs.length) % newsTabs.length;
-                    const prevTab = newsTabs[prevIdx];
-                    const tabButton = document.getElementById(`news-tab-${prevTab}`);
-                    tabButton?.focus();
-                  }
-                }}
-                className={`min-h-[44px] min-w-[44px] px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${
-                  activeNewsTab === tab
-                    ? "border-action-primary text-action-primary"
-                    : "border-transparent text-muted hover:text-primary hover:border-border-strong"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab panels */}
-          {newsTabs.map((tab) => (
-            <div
-              key={tab}
-              role="tabpanel"
-              id={`news-panel-${tab}`}
-              ref={activeNewsTab === tab ? newsPanelRef : undefined}
-              aria-labelledby={`news-tab-${tab}`}
-              tabIndex={0}
-              hidden={activeNewsTab !== tab}
-              className="p-4 focus:outline-none"
-            >
-              {newsItems.filter((n) => n.tab === tab).length === 0 ? (
-                <p className="text-sm text-muted py-4">
-                  No {tab.toLowerCase()} news available right now.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {newsItems
-                    .filter((n) => n.tab === tab)
-                    .map((item) => (
-                      <article
-                        key={item.id}
-                        /* a11y: aria-labelledby links article to its headline for screen reader navigation */
-                        aria-labelledby={`news-headline-${item.id}`}
-                        className="border-b border-border-default last:border-0 pb-4 last:pb-0"
-                      >
-                        <h3
-                          id={`news-headline-${item.id}`}
-                          className="text-sm font-semibold text-primary"
-                        >
-                          {item.title}
-                        </h3>
-                        <p className="text-xs text-muted mt-1">
-                          {item.source} &middot;{" "}
-                          <time dateTime={item.date}>{formatDate(item.date)}</time>
-                        </p>
-                        <div className="mt-2 p-2 rounded bg-surface-sunken">
-                          <p className="text-xs text-secondary">
-                            <span className="sr-only">AI Summary: </span>
-                            <span
-                              className="inline-block px-1 py-0.5 text-[10px] font-medium bg-feedback-info text-inverse rounded mr-1"
-                              /* a11y: aria-hidden because the sr-only span above provides the label for screen readers */
-                              aria-hidden="true"
+        <div className="bg-surface-raised border border-border-default rounded-lg px-4">
+          <Tabs
+            label="News categories"
+            value={activeNewsTab}
+            onChange={(id) => handleNewsTabChange(id as NewsTab)}
+            tabs={newsTabs.map((tab) => ({
+              id: tab,
+              label: tab,
+              content: (
+                <div className="p-4">
+                  {newsItems.filter((n) => n.tab === tab).length === 0 ? (
+                    <p className="text-sm text-muted py-4">
+                      No {tab.toLowerCase()} news available right now.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {newsItems
+                        .filter((n) => n.tab === tab)
+                        .map((item) => (
+                          <article
+                            key={item.id}
+                            /* a11y: aria-labelledby links article to its headline for screen reader navigation */
+                            aria-labelledby={`news-headline-${item.id}`}
+                            className="border-b border-border-default last:border-0 pb-4 last:pb-0"
+                          >
+                            <h3
+                              id={`news-headline-${item.id}`}
+                              className="text-sm font-semibold text-primary"
                             >
-                              AI Summary
-                            </span>
-                            {item.aiSummary}
-                          </p>
-                        </div>
-                      </article>
-                    ))}
+                              {item.title}
+                            </h3>
+                            <p className="text-xs text-muted mt-1">
+                              {item.source} &middot;{" "}
+                              <time dateTime={item.date}>{formatDate(item.date)}</time>
+                            </p>
+                            <div className="mt-2 p-2 rounded bg-surface-sunken">
+                              <p className="text-xs text-secondary">
+                                <span className="sr-only">AI Summary: </span>
+                                <span
+                                  className="inline-block px-1 py-0.5 text-[10px] font-medium bg-feedback-info text-inverse rounded mr-1"
+                                  /* a11y: aria-hidden because the sr-only span above provides the label for screen readers */
+                                  aria-hidden="true"
+                                >
+                                  AI Summary
+                                </span>
+                                {item.aiSummary}
+                              </p>
+                            </div>
+                          </article>
+                        ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              ),
+            }))}
+          />
         </div>
       </section>
 

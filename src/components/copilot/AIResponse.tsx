@@ -10,141 +10,80 @@ interface AIResponseProps {
 const confidenceConfig: Record<
   ConfidenceLevel,
   {
-    icon: string;
     label: string;
-    srPrefix: string;
-    borderClass: string;
-    colorClass: string;
-    bgClass: string;
+    cardClass: string;
+    chipClass: string;
   }
 > = {
   high: {
-    icon: "\u2713",
     label: "High confidence",
-    srPrefix: "High confidence response.",
-    borderClass: "border-2 border-solid border-ai-confidence-high",
-    colorClass: "text-ai-confidence-high",
-    bgClass: "bg-ai-confidence-high/10",
+    cardClass: "ai-card ai-card--high",
+    chipClass: "confidence-chip confidence-chip--high",
   },
   moderate: {
-    icon: "\u24D8",
     label: "Moderate confidence",
-    srPrefix: "Moderate confidence response.",
-    borderClass: "border-2 border-dashed border-ai-confidence-medium",
-    colorClass: "text-ai-confidence-medium",
-    bgClass: "bg-ai-confidence-medium/10",
+    cardClass: "ai-card ai-card--moderate",
+    chipClass: "confidence-chip confidence-chip--moderate",
   },
   low: {
-    icon: "\u26A0",
     label: "Low confidence",
-    srPrefix: "Low confidence response. Consider verifying this information.",
-    borderClass: "border-2 border-dotted border-ai-confidence-low",
-    colorClass: "text-ai-confidence-low",
-    bgClass: "bg-ai-confidence-low/10",
+    cardClass: "ai-card ai-card--low",
+    chipClass: "confidence-chip confidence-chip--low",
   },
 };
 
 /**
- * AIResponse — renders a single AI copilot response with three trust signals.
+ * AIResponse -- renders a single AI copilot response per section 2.4.
  *
- * Trust signals (per CLAUDE.md A3.3 / design-system section 2.8):
- * 1. AI provenance badge — always visible, tabIndex={0}, role="note"
- * 2. Confidence indicator — icon + word + color + border style, SR announces confidence FIRST
- * 3. Sources list — academic citations with title, publisher, date
- *
- * Low-confidence responses include a mandatory "Verify in Research" link (A3.4).
+ * Structure:
+ * - <article> with aria-labelledby + aria-describedby + tabIndex={0}
+ * - sr-only <span> with id for label (includes confidence + sources list)
+ * - Confidence chip with aria-hidden="true" (already announced via label)
+ * - Body in <p> with id for describedby
+ * - <footer> wrapping sources <details>/<summary> + Verify CTA + feedback buttons
+ * - Colored left border + gradient background by confidence level
+ * - AI badge in JetBrains Mono 10px
+ * - Confidence dot (8px circle) in the chip
  */
 export default function AIResponse({ response }: AIResponseProps) {
   const uniqueId = useId();
   const config = confidenceConfig[response.confidence];
-  const contentId = `ai-response-content-${uniqueId}`;
 
-  /* a11y: Use useId() for both IDs to avoid dots in response.id breaking aria references */
   const labelId = `ai-label-${uniqueId}`;
   const bodyId = `ai-body-${uniqueId}`;
+
+  /* Build sources text for sr-only label */
+  const sourcesText =
+    response.sources.length > 0
+      ? ` Sources: ${response.sources.map((s) => s.title).join(", ")}.`
+      : "";
 
   return (
     <article
       /* a11y: tabIndex={0} so Tab can reach this AI response card */
       tabIndex={0}
-      /* a11y: aria-labelledby points to sr-only div that announces confidence first */
+      /* a11y: aria-labelledby points to sr-only span that announces confidence + sources first */
       aria-labelledby={labelId}
       /* a11y: aria-describedby points to the body paragraph for additional context */
       aria-describedby={bodyId}
-      className={[
-        "rounded-lg p-4",
-        config.borderClass,
-        /* Colored left border by confidence level for quick visual scanning */
-        response.confidence === "high"
-          ? "border-l-4 border-l-ai-confidence-high"
-          : response.confidence === "moderate"
-            ? "border-l-4 border-l-ai-confidence-medium"
-            : "border-l-4 border-l-ai-confidence-low",
-        "bg-surface-raised",
-        "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
-      ].join(" ")}
+      className={`${config.cardClass} focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2`}
     >
-      {/* a11y: sr-only label announced FIRST on Tab — includes confidence level AND
-          a preview of the content so screen reader users hear something meaningful */}
-      <div id={labelId} className="sr-only">
-        AI insight, {config.label.toLowerCase()}. {response.content.substring(0, 150)}{response.content.length > 150 ? "..." : ""}
-      </div>
-      {/* Trust Signal 1: AI Provenance Badge */}
+      {/* a11y: sr-only label announced FIRST on Tab -- includes confidence level AND sources list */}
+      <span id={labelId} className="sr-only">
+        AI insight, {config.label.toLowerCase()}.{sourcesText}
+      </span>
+
+      {/* Header: AI badge + confidence chip */}
       <div className="flex items-center justify-between mb-3">
-        <span
-          /* a11y: role="note" identifies this as supplementary information about the content source */
-          role="note"
-          /* a11y: aria-label provides full accessible description of the provenance badge */
-          aria-label="AI-generated"
-          /* a11y: tabIndex={0} makes the badge focusable so keyboard users can discover it */
-          tabIndex={0}
-          className={[
-            "inline-flex items-center gap-1.5 px-2.5 py-1",
-            "rounded-full text-xs font-semibold",
-            "bg-surface-sunken text-secondary",
-            "min-h-[44px] min-w-[44px]",
-            "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
-          ].join(" ")}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            /* a11y: aria-hidden="true" because the badge text already conveys meaning */
-            aria-hidden="true"
-          >
-            <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M5 9.5L7 4.5L9 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <line x1="5.5" y1="8" x2="8.5" y2="8" stroke="currentColor" strokeWidth="1" />
-          </svg>
-          AI Generated
+        {/* Trust Signal 1: AI Provenance Badge -- JetBrains Mono 10px per section 2.4 */}
+        <span className="ai-badge" aria-label="AI-generated">
+          AI
         </span>
 
-        {/* Trust Signal 2: Confidence Indicator */}
-        <span
-          className={[
-            "inline-flex items-center gap-1.5 px-2.5 py-1",
-            "rounded-full text-xs font-semibold",
-            config.bgClass,
-            config.colorClass,
-            "min-h-[44px]",
-          ].join(" ")}
-        >
-          {/* a11y: sr-only prefix ensures screen readers announce confidence FIRST before the visual label */}
-          <span className="sr-only">{config.srPrefix}</span>
-          <span
-            /* a11y: aria-hidden="true" because the sr-only span above already conveys this information */
-            aria-hidden="true"
-          >
-            {config.icon}
-          </span>
-          <span
-            /* a11y: aria-hidden="true" to prevent double-reading since sr-only prefix covers it */
-            aria-hidden="true"
-          >
-            {config.label}
-          </span>
+        {/* Trust Signal 2: Confidence Chip -- aria-hidden because sr-only label already announces */}
+        <span className={config.chipClass} aria-hidden="true">
+          <span className="confidence-dot" />
+          {config.label}
         </span>
       </div>
 
@@ -153,81 +92,90 @@ export default function AIResponse({ response }: AIResponseProps) {
         {response.content}
       </p>
 
-      {/* Low-confidence mandatory verification link (A3.4) */}
-      {response.confidence === "low" && (
-        <a
-          href="/research"
-          className={[
-            "inline-flex items-center gap-1 mb-4",
-            "min-h-[44px] px-3 py-2 rounded-lg",
-            "text-sm font-semibold",
-            "text-ai-confidence-low bg-ai-confidence-low/10",
-            "hover:bg-ai-confidence-low/20",
-            "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
-          ].join(" ")}
-        >
-          Verify in Research
-          <span
-            /* a11y: aria-hidden="true" because it is a decorative arrow icon */
-            aria-hidden="true"
-          >
-            {" \u2192"}
-          </span>
-        </a>
-      )}
+      {/* Footer: sources, verify CTA, feedback */}
+      <footer className="border-t border-border-default pt-3">
+        {/* Trust Signal 3: Sources List -- collapsible details/summary */}
+        {response.sources.length > 0 && (
+          <details className="mb-3">
+            <summary className="text-xs font-semibold text-muted uppercase tracking-wide cursor-pointer min-h-[44px] flex items-center focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded">
+              Sources ({response.sources.length})
+            </summary>
+            <ul
+              className="list-none p-0 m-0 space-y-1 mt-2"
+              /* a11y: aria-label identifies this list for screen reader users navigating by list landmark */
+              aria-label="Citation sources for this AI response"
+            >
+              {response.sources.map((source, index) => (
+                <li
+                  key={index}
+                  className="text-xs text-secondary leading-relaxed"
+                >
+                  {source.url ? (
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2 hover:text-action-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px] inline-flex items-center"
+                    >
+                      {source.title}
+                      <span className="sr-only">
+                        {/* a11y: sr-only text warns screen reader users that this link opens in a new tab */}
+                        {" "}(opens in new tab)
+                      </span>
+                    </a>
+                  ) : (
+                    <span className="font-medium">{source.title}</span>
+                  )}
+                  {" \u2014 "}
+                  <span>{source.publisher}</span>
+                  {", "}
+                  <time dateTime={source.date}>
+                    {new Date(source.date).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
 
-      {/* Trust Signal 3: Sources List — wrapped in <footer> for semantic structure */}
-      {response.sources.length > 0 && (
-        <footer className="border-t border-border-default pt-3">
-          <h4 className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
-            Sources
-          </h4>
-          <ul
-            className="list-none p-0 m-0 space-y-1"
-            /* a11y: aria-label identifies this list for screen reader users navigating by list landmark */
-            aria-label="Citation sources for this AI response"
+        {/* Low-confidence mandatory verification link (A3.4) */}
+        {response.confidence === "low" && (
+          <a
+            href="/research"
+            className="inline-flex items-center gap-1 mb-3 min-h-[44px] px-3 py-2 rounded-lg text-sm font-semibold text-ai-low bg-ai-low-bg hover:opacity-80 focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
           >
-            {response.sources.map((source, index) => (
-              <li
-                key={index}
-                className="text-xs text-secondary leading-relaxed"
-              >
-                {source.url ? (
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={[
-                      "underline underline-offset-2",
-                      "hover:text-action-primary",
-                      "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
-                      "min-h-[44px] inline-flex items-center",
-                    ].join(" ")}
-                  >
-                    {source.title}
-                    <span className="sr-only">
-                      {/* a11y: sr-only text warns screen reader users that this link opens in a new tab */}
-                      {" "}(opens in new tab)
-                    </span>
-                  </a>
-                ) : (
-                  <span className="font-medium">{source.title}</span>
-                )}
-                {" \u2014 "}
-                <span>{source.publisher}</span>
-                {", "}
-                <time dateTime={source.date}>
-                  {new Date(source.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </time>
-              </li>
-            ))}
-          </ul>
-        </footer>
-      )}
+            Verify in Research
+            <span
+              /* a11y: aria-hidden="true" because it is a decorative arrow icon */
+              aria-hidden="true"
+            >
+              {" \u2192"}
+            </span>
+          </a>
+        )}
+
+        {/* Feedback buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="min-h-[44px] min-w-[44px] px-2 py-1 rounded text-xs text-muted hover:text-primary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            aria-label="This response was helpful"
+          >
+            <span aria-hidden="true">{"\u{1F44D}"}</span> Helpful
+          </button>
+          <button
+            type="button"
+            className="min-h-[44px] min-w-[44px] px-2 py-1 rounded text-xs text-muted hover:text-primary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            aria-label="This response was not helpful"
+          >
+            <span aria-hidden="true">{"\u{1F44E}"}</span> Not helpful
+          </button>
+        </div>
+      </footer>
     </article>
   );
 }

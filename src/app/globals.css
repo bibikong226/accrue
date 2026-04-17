@@ -374,3 +374,114 @@ body {
     transition: none !important;
   }
 }
+
+/* ============================================================
+   AI Card — section 2.4
+   ============================================================ */
+.ai-card {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 4px solid transparent;
+  border-radius: 8px;
+  padding: 16px;
+}
+.ai-card--high {
+  border-left-color: var(--color-ai-high);
+}
+.ai-card--moderate {
+  border-left-color: var(--color-ai-moderate);
+}
+.ai-card--low {
+  border-left-color: var(--color-ai-low);
+}
+
+/* Confidence chip */
+.confidence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.confidence-chip--high {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-ai-high);
+}
+.confidence-chip--moderate {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-ai-moderate);
+}
+.confidence-chip--low {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--color-ai-low);
+}
+
+/* Confidence dot (8px circle) */
+.confidence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* AI badge -- JetBrains Mono 10px */
+.ai-badge {
+  background: var(--color-ai-badge-bg);
+  color: var(--color-ai-badge-fg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   Source Chips — section 3.3
+   ============================================================ */
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
+  color: var(--color-secondary);
+}
+.source-chip--real {
+  border-color: var(--color-ai-high);
+  color: var(--color-ai-high);
+}
+.source-chip--prototype {
+  border-color: var(--color-ai-moderate);
+  color: var(--color-ai-moderate);
+}
+.source-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Forced colors: AI card + source chips */
+@media (forced-colors: active) {
+  .ai-card {
+    border: 2px solid CanvasText !important;
+    background: Canvas !important;
+  }
+  .ai-badge {
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+  .confidence-chip,
+  .source-chip {
+    border: 1px solid CanvasText !important;
+    color: CanvasText !important;
+    background: Canvas !important;
+  }
+}
