@@ -59,8 +59,9 @@ export default function AIResponse({ response }: AIResponseProps) {
   const config = confidenceConfig[response.confidence];
   const contentId = `ai-response-content-${uniqueId}`;
 
+  /* a11y: Use useId() for both IDs to avoid dots in response.id breaking aria references */
   const labelId = `ai-label-${uniqueId}`;
-  const bodyId = `ai-body-${response.id}`;
+  const bodyId = `ai-body-${uniqueId}`;
 
   return (
     <article
@@ -83,8 +84,10 @@ export default function AIResponse({ response }: AIResponseProps) {
         "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
       ].join(" ")}
     >
+      {/* a11y: sr-only label announced FIRST on Tab — includes confidence level AND
+          a preview of the content so screen reader users hear something meaningful */}
       <div id={labelId} className="sr-only">
-        AI insight, {config.label.toLowerCase()}
+        AI insight, {config.label.toLowerCase()}. {response.content.substring(0, 150)}{response.content.length > 150 ? "..." : ""}
       </div>
       {/* Trust Signal 1: AI Provenance Badge */}
       <div className="flex items-center justify-between mb-3">
