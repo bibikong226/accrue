@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useId } from "react";
+import Link from "next/link";
 import type { Holding } from "@/data/mockPortfolio";
 import { announce } from "@/lib/a11y/useAnnouncer";
 
@@ -126,9 +127,13 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
       setExpandedRow((prev) => {
         const next = prev === symbol ? null : symbol;
         if (next) {
-          announce(`${symbol} details expanded.`, "polite");
+          announce(`${symbol} position expanded. Use Tab to explore details.`, "polite");
+          requestAnimationFrame(() => {
+            const panel = document.getElementById(`expansion-${symbol}`);
+            panel?.focus();
+          });
         } else {
-          announce(`${symbol} details collapsed.`, "polite");
+          announce(`${symbol} collapsed.`, "polite");
         }
         return next;
       });
@@ -331,7 +336,7 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                 {/* Expandable detail row */}
                 {isExpanded && (
                   <tr className="border-b border-border-default bg-surface-sunken">
-                    <td colSpan={7} className="py-4 px-6">
+                    <td colSpan={7} className="py-4 px-6" id={`expansion-${holding.symbol}`} tabIndex={-1}>
                       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-sm">
                         <div>
                           <dt className="text-muted font-medium">Cost Basis</dt>
@@ -393,7 +398,47 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                             </dd>
                           </div>
                         )}
+                        <div>
+                          <dt className="text-muted font-medium">
+                            52-week Range
+                          </dt>
+                          <dd className="text-primary tabular-nums mt-0.5">
+                            {formatCurrency(holding.fundamentals.week52Low)} &ndash; {formatCurrency(holding.fundamentals.week52High)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted font-medium">Shares</dt>
+                          <dd className="text-primary tabular-nums mt-0.5">
+                            {holding.shares}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted font-medium">Last Price</dt>
+                          <dd className="text-primary tabular-nums mt-0.5">
+                            {formatCurrency(holding.currentPrice)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted font-medium">Avg Cost</dt>
+                          <dd className="text-primary tabular-nums mt-0.5">
+                            {formatCurrency(holding.avgCost)}
+                          </dd>
+                        </div>
                       </dl>
+                      <div className="flex gap-2 mt-4">
+                        <Link
+                          href={`/orders?symbol=${holding.symbol}&action=buy`}
+                          className="inline-flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md bg-action-primary text-inverse font-medium text-sm hover:bg-action-primary-hover focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                        >
+                          Buy {holding.symbol}
+                        </Link>
+                        <Link
+                          href={`/orders?symbol=${holding.symbol}&action=sell`}
+                          className="inline-flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md border border-border-default text-primary font-medium text-sm hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                        >
+                          Sell {holding.symbol}
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 )}

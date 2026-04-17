@@ -261,6 +261,26 @@ export default function ResearchDetailPage() {
               >
                 Buy {ticker}
               </Link>
+              {holding ? (
+                <Link
+                  href={`/orders?symbol=${ticker}&action=sell`}
+                  className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md border border-border-default text-primary font-medium hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                >
+                  Sell {ticker}
+                </Link>
+              ) : (
+                <span
+                  role="link"
+                  aria-disabled="true"
+                  aria-describedby="sell-disabled-reason"
+                  className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md border border-border-default text-muted font-medium cursor-not-allowed opacity-50"
+                >
+                  Sell {ticker}
+                  <span id="sell-disabled-reason" className="sr-only">
+                    You do not own shares of {ticker}. Buy shares first to sell.
+                  </span>
+                </span>
+              )}
               <button
                 className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md border border-border-default text-secondary font-medium hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
                 onClick={() =>

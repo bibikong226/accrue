@@ -20,6 +20,7 @@ import {
   getGainLossDisplay,
 } from "@/lib/format";
 import { announce } from "@/lib/a11y/useAnnouncer";
+import { useRouter } from "next/navigation";
 
 /* ─── Constants derived from mock data ─── */
 const todayChange = holdings.reduce(
@@ -155,6 +156,9 @@ export default function DashboardPage() {
   const newsPanelRef = useRef<HTMLDivElement>(null);
   const [dismissedInsights, setDismissedInsights] = useState<Set<number>>(new Set());
   const [insightQuery, setInsightQuery] = useState("");
+  const [leverConfirm, setLeverConfirm] = useState<string | null>(null);
+  const [currentGoalStatus, setCurrentGoalStatus] = useState(goalStatus);
+  const router = useRouter();
 
   const sortedHoldings = [...holdings].sort((a, b) => {
     const aVal = a[sortKey];
@@ -187,10 +191,14 @@ export default function DashboardPage() {
       const next = new Set(prev);
       if (next.has(symbol)) {
         next.delete(symbol);
-        announce(`${symbol} details collapsed`, "polite");
+        announce(`${symbol} collapsed.`, "polite");
       } else {
         next.add(symbol);
-        announce(`${symbol} details expanded`, "polite");
+        announce(`${symbol} position expanded. Use Tab to explore details.`, "polite");
+        requestAnimationFrame(() => {
+          const panel = document.getElementById(`expansion-${symbol}`);
+          panel?.focus();
+        });
       }
       return next;
     });
@@ -432,18 +440,18 @@ export default function DashboardPage() {
           <div
             tabIndex={0}
             role="group"
-            aria-label={`Goal status: ${goalStatusLabels[goalStatus]}`}
+            aria-label={`Goal status: ${goalStatusLabels[currentGoalStatus]}`}
             className="flex items-center gap-3 mb-4 focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md p-1"
           >
             <span
-              className={`text-sm font-bold ${goalStatusColors[goalStatus]}`}
+              className={`text-sm font-bold ${goalStatusColors[currentGoalStatus]}`}
             >
-              {goalStatusLabels[goalStatus]}
+              {goalStatusLabels[currentGoalStatus]}
             </span>
             <span className="text-sm text-secondary">
-              {goalStatus === "on-track"
+              {currentGoalStatus === "on-track"
                 ? `You are exceeding your ${portfolioSummary.goalLabel} target with ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} return.`
-                : goalStatus === "behind"
+                : currentGoalStatus === "behind"
                   ? `Your return of ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} is slightly behind your ${portfolioSummary.goalLabel} target.`
                   : `Your return of ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} needs attention to meet your ${portfolioSummary.goalLabel} target.`}
             </span>
@@ -516,50 +524,71 @@ export default function DashboardPage() {
           })()}
 
           {/* Lever cards for off-track — three actionable options per § 3.5 */}
-          {goalStatus !== "on-track" && (
+          {currentGoalStatus !== "on-track" && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                type="button"
-                className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px]"
-                onClick={() =>
-                  announce("Increase monthly contribution option selected. This is a prototype action.", "polite")
-                }
-              >
-                <h3 className="text-sm font-semibold text-primary">
-                  Add $45/mo
-                </h3>
-                <p className="text-xs text-gain font-medium mt-1">
-                  &rarr; On track
-                </p>
-              </button>
-              <button
-                type="button"
-                className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px]"
-                onClick={() =>
-                  announce("Extend timeline option selected. This is a prototype action.", "polite")
-                }
-              >
-                <h3 className="text-sm font-semibold text-primary">
-                  Extend by 7 months
-                </h3>
-                <p className="text-xs text-gain font-medium mt-1">
-                  &rarr; On track
-                </p>
-              </button>
-              <button
-                type="button"
-                className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px]"
-                onClick={() =>
-                  announce("One-time deposit option selected. This is a prototype action.", "polite")
-                }
-              >
-                <h3 className="text-sm font-semibold text-primary">
-                  One-time $1,200
-                </h3>
-                <p className="text-xs text-gain font-medium mt-1">
-                  &rarr; On track
-                </p>
-              </button>
+              <div>
+                <button
+                  type="button"
+                  className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px] w-full"
+                  onClick={() => {
+                    setLeverConfirm("recurring");
+                    setCurrentGoalStatus("on-track");
+                    announce("Recurring $45 per month set up for House goal. You're now on track.", "assertive");
+                  }}
+                >
+                  <h3 className="text-sm font-semibold text-primary">
+                    Add $45/mo
+                  </h3>
+                  <p className="text-xs text-gain font-medium mt-1">
+                    &rarr; On track
+                  </p>
+                </button>
+                {leverConfirm === "recurring" && (
+                  <p className="text-xs text-gain font-medium mt-2 p-2 bg-green-50 rounded" role="status">
+                    Recurring $45/month set up for House goal. You&apos;re now on track.
+                  </p>
+                )}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px] w-full"
+                  onClick={() => {
+                    setLeverConfirm("extend");
+                    setCurrentGoalStatus("on-track");
+                    announce("Timeline extended by 7 months for House goal. You're now on track.", "assertive");
+                  }}
+                >
+                  <h3 className="text-sm font-semibold text-primary">
+                    Extend by 7 months
+                  </h3>
+                  <p className="text-xs text-gain font-medium mt-1">
+                    &rarr; On track
+                  </p>
+                </button>
+                {leverConfirm === "extend" && (
+                  <p className="text-xs text-gain font-medium mt-2 p-2 bg-green-50 rounded" role="status">
+                    Timeline extended by 7 months. You&apos;re now on track.
+                  </p>
+                )}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className="border border-border-default rounded-md p-3 text-left hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 min-h-[44px] w-full"
+                  onClick={() => {
+                    announce("Navigating to trade flow for a one-time $1,200 VTI purchase.", "assertive");
+                    router.push("/orders?ticker=VTI&amount=1200");
+                  }}
+                >
+                  <h3 className="text-sm font-semibold text-primary">
+                    One-time $1,200
+                  </h3>
+                  <p className="text-xs text-gain font-medium mt-1">
+                    &rarr; On track
+                  </p>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -606,8 +635,8 @@ export default function DashboardPage() {
               })()}
             </div>
 
-            {/* Accessible allocation table */}
-            <table className="w-full text-sm">
+            {/* Accessible allocation table — tabIndex={0} so Tab can land on it */}
+            <table className="w-full text-sm" tabIndex={0} aria-label="Portfolio allocation by sector, showing value and percentage of total portfolio">
               <caption className="text-left text-sm font-medium text-muted mb-2">
                 Portfolio allocation by sector, showing value and percentage of
                 total portfolio
@@ -790,7 +819,7 @@ export default function DashboardPage() {
                     </tr>
                     {isExpanded && (
                       <tr className="bg-surface-sunken">
-                        <td colSpan={7} className="p-4">
+                        <td colSpan={7} className="p-4" id={`expansion-${h.symbol}`} tabIndex={-1}>
                           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                             <div>
                               <dt className="text-muted font-medium">
@@ -933,7 +962,7 @@ export default function DashboardPage() {
             aria-label="News categories"
             className="flex border-b border-border-default px-4"
           >
-            {newsTabs.map((tab) => (
+            {newsTabs.map((tab, idx) => (
               <button
                 key={tab}
                 role="tab"
@@ -943,16 +972,20 @@ export default function DashboardPage() {
                 tabIndex={activeNewsTab === tab ? 0 : -1}
                 onClick={() => handleNewsTabChange(tab)}
                 onKeyDown={(e) => {
-                  const currentIdx = newsTabs.indexOf(activeNewsTab);
+                  const currentIdx = newsTabs.indexOf(tab);
                   if (e.key === "ArrowRight") {
                     e.preventDefault();
                     const nextIdx = (currentIdx + 1) % newsTabs.length;
-                    handleNewsTabChange(newsTabs[nextIdx]);
+                    const nextTab = newsTabs[nextIdx];
+                    const tabButton = document.getElementById(`news-tab-${nextTab}`);
+                    tabButton?.focus();
                   } else if (e.key === "ArrowLeft") {
                     e.preventDefault();
                     const prevIdx =
                       (currentIdx - 1 + newsTabs.length) % newsTabs.length;
-                    handleNewsTabChange(newsTabs[prevIdx]);
+                    const prevTab = newsTabs[prevIdx];
+                    const tabButton = document.getElementById(`news-tab-${prevTab}`);
+                    tabButton?.focus();
                   }
                 }}
                 className={`min-h-[44px] min-w-[44px] px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${

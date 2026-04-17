@@ -59,16 +59,24 @@ export default function AIResponse({ response }: AIResponseProps) {
   const config = confidenceConfig[response.confidence];
   const contentId = `ai-response-content-${uniqueId}`;
 
+  const labelId = `ai-label-${uniqueId}`;
+
   return (
     <article
-      /* a11y: aria-label includes confidence prefix so screen readers announce confidence level when navigating by landmark */
-      aria-label={`${config.srPrefix} AI-generated response`}
+      /* a11y: tabIndex={0} so Tab can reach this AI response card */
+      tabIndex={0}
+      /* a11y: aria-labelledby points to sr-only div that announces confidence first */
+      aria-labelledby={labelId}
       className={[
         "rounded-lg p-4",
         config.borderClass,
         "bg-surface-raised",
+        "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
       ].join(" ")}
     >
+      <div id={labelId} className="sr-only">
+        AI insight, {config.label.toLowerCase()}
+      </div>
       {/* Trust Signal 1: AI Provenance Badge */}
       <div className="flex items-center justify-between mb-3">
         <span
