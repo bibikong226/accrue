@@ -8,6 +8,8 @@ import {
   generatePriceHistory,
 } from "@/data/mockPortfolio";
 import ChartWrapper from "@/components/chart/ChartWrapper";
+import AIResponse from "@/components/copilot/AIResponse";
+import { fixturesById } from "@/data/copilotFixtures";
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -151,6 +153,8 @@ export default function DashboardPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [activeNewsTab, setActiveNewsTab] = useState<NewsTab>("Holdings");
   const newsPanelRef = useRef<HTMLDivElement>(null);
+  const [dismissedInsights, setDismissedInsights] = useState<Set<number>>(new Set());
+  const [insightQuery, setInsightQuery] = useState("");
 
   const sortedHoldings = [...holdings].sort((a, b) => {
     const aVal = a[sortKey];
@@ -571,10 +575,12 @@ export default function DashboardPage() {
         </h2>
         <div className="bg-surface-raised border border-border-default rounded-lg p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Donut chart (aria-hidden because the table below is the accessible version) */}
+            {/* Donut chart — tabIndex so screen readers can Tab to it; aria-label provides summary */}
             <div
-              aria-hidden="true"
-              className="flex items-center justify-center"
+              tabIndex={0}
+              role="img"
+              aria-label={`Donut chart showing portfolio allocation across ${sectorAllocation.length} sectors. Largest sector: ${sectorAllocation[0].sector} at ${sectorAllocation[0].percent.toFixed(1)}%. Total value: ${formatCurrency(portfolioSummary.totalValue)}. See allocation table for full details.`}
+              className="flex items-center justify-center focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md"
             >
               {(() => {
                 const colors = ['#2563EB', '#047857', '#B91C1C', '#B45309', '#71717A', '#1E40AF'];
@@ -1008,6 +1014,119 @@ export default function DashboardPage() {
               )}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ─── Section 8: AI Insights ─── */}
+      <section aria-labelledby="ai-insights-heading" className="mb-6">
+        <h2
+          id="ai-insights-heading"
+          className="text-lg font-semibold text-primary mb-3"
+        >
+          AI Insights
+        </h2>
+        <div className="space-y-4">
+          {/* Insight card 1: What changed since last login */}
+          {!dismissedInsights.has(0) && fixturesById["dashboard.sinceLastLogin"] && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setDismissedInsights((prev) => new Set(prev).add(0));
+                  announce("What changed insight dismissed", "polite");
+                }}
+                aria-label="Dismiss what changed insight"
+                className="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+              >
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+              <AIResponse response={fixturesById["dashboard.sinceLastLogin"]} />
+            </div>
+          )}
+
+          {/* Insight card 2: Diversification analysis */}
+          {!dismissedInsights.has(1) && fixturesById["diversification.status"] && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setDismissedInsights((prev) => new Set(prev).add(1));
+                  announce("Diversification insight dismissed", "polite");
+                }}
+                aria-label="Dismiss diversification insight"
+                className="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+              >
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+              <AIResponse response={fixturesById["diversification.status"]} />
+            </div>
+          )}
+
+          {/* Insight card 3: Goal progress */}
+          {!dismissedInsights.has(2) && fixturesById["goal.projectedPace"] && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setDismissedInsights((prev) => new Set(prev).add(2));
+                  announce("Goal progress insight dismissed", "polite");
+                }}
+                aria-label="Dismiss goal progress insight"
+                className="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+              >
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+              <AIResponse response={fixturesById["goal.projectedPace"]} />
+            </div>
+          )}
+        </div>
+
+        {/* Ask Accrue anything input */}
+        <div className="mt-4">
+          <label
+            htmlFor="ai-insights-query"
+            className="sr-only"
+          >
+            Ask Accrue anything
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="ai-insights-query"
+              type="text"
+              value={insightQuery}
+              onChange={(e) => setInsightQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && insightQuery.trim()) {
+                  window.dispatchEvent(
+                    new CustomEvent("accrue-copilot-query", {
+                      detail: insightQuery.trim(),
+                    })
+                  );
+                  setInsightQuery("");
+                  announce("Query sent to AI Copilot", "polite");
+                }
+              }}
+              placeholder="Ask Accrue anything..."
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary text-sm focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (insightQuery.trim()) {
+                  window.dispatchEvent(
+                    new CustomEvent("accrue-copilot-query", {
+                      detail: insightQuery.trim(),
+                    })
+                  );
+                  setInsightQuery("");
+                  announce("Query sent to AI Copilot", "polite");
+                }
+              }}
+              className="min-w-[44px] min-h-[44px] px-4 py-2 rounded-md bg-action-primary text-inverse font-medium text-sm hover:bg-action-primary-hover focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+            >
+              Ask
+            </button>
+          </div>
         </div>
       </section>
     </>

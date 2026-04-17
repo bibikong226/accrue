@@ -88,7 +88,6 @@ function ReviewContent() {
 
   const [journalEntry, setJournalEntry] = useState("");
   const [regretRehearsal, setRegretRehearsal] = useState("");
-  const [showRegret, setShowRegret] = useState(true);
   const [acknowledged, setAcknowledged] = useState(false);
   const [journalError, setJournalError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -378,49 +377,54 @@ function ReviewContent() {
             )}
           </div>
 
-          {/* Regret Rehearsal */}
-          {showRegret ? (
-            <div className="mb-4">
+          {/* On sell: surface original buy thesis and ask what happened */}
+          {action === "sell" && (
+            <div className="mb-4 p-3 bg-surface-sunken rounded-md">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">
+                Your original buy thesis
+              </p>
+              <p className="text-sm text-secondary italic mb-3">
+                &quot;I believe {symbol} has strong long-term growth potential based on fundamentals and sector trends.&quot;
+              </p>
               <label
-                htmlFor="regret-rehearsal"
+                htmlFor="sell-reflection"
                 className="block text-sm font-semibold text-primary mb-1"
               >
-                Regret Rehearsal (optional)
+                What happened since then? (optional)
               </label>
-              <p className="text-xs text-muted mb-2">
-                Imagine this trade goes poorly. What would you feel, and what
-                would you wish you had considered?
-              </p>
               <textarea
-                id="regret-rehearsal"
+                id="sell-reflection"
                 value={regretRehearsal}
                 onChange={(e) => setRegretRehearsal(e.target.value)}
                 rows={2}
                 className="w-full min-h-[66px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-                placeholder="If this trade loses money, I would feel..."
+                placeholder="Describe what changed since your original thesis..."
               />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRegret(false);
-                  announce("Regret rehearsal skipped", "polite");
-                }}
-                className="text-xs text-action-primary underline mt-1 min-h-[44px] min-w-[44px] inline-flex items-center focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-              >
-                Skip reflection
-              </button>
             </div>
-          ) : (
-            <p className="text-xs text-muted mb-4">
-              Regret rehearsal skipped.{" "}
-              <button
-                type="button"
-                onClick={() => setShowRegret(true)}
-                className="text-action-primary underline min-h-[44px] inline-flex items-center focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+          )}
+
+          {/* On buy: What would make this fail? */}
+          {action !== "sell" && (
+            <div className="mb-4">
+              <label
+                htmlFor="failure-rehearsal"
+                className="block text-sm font-semibold text-primary mb-1"
               >
-                Add reflection
-              </button>
-            </p>
+                What would make this fail? (optional)
+              </label>
+              <p className="text-xs text-muted mb-2">
+                Thinking about conditions that would invalidate your thesis
+                helps you make more deliberate decisions.
+              </p>
+              <textarea
+                id="failure-rehearsal"
+                value={regretRehearsal}
+                onChange={(e) => setRegretRehearsal(e.target.value)}
+                rows={2}
+                className="w-full min-h-[66px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                placeholder="This trade would fail if..."
+              />
+            </div>
           )}
         </div>
       </section>

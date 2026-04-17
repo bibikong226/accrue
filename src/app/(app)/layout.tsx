@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CopilotPanel from "@/components/copilot/CopilotPanel";
+import TickerStrip from "@/components/finance/TickerStrip";
 
 /* ─── Navigation items ─── */
 const NAV_ITEMS = [
@@ -11,7 +12,7 @@ const NAV_ITEMS = [
   { href: "/research", label: "Research" },
   { href: "/orders", label: "Trade" },
   { href: "/history", label: "History" },
-  { href: "/journal", label: "Journal" },
+  { href: "/trades", label: "Trades" },
   { href: "/help", label: "Help" },
 ] as const;
 
@@ -94,6 +95,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div />
           </div>
         </header>
+
+        <TickerStrip />
 
         <main
           id="main"

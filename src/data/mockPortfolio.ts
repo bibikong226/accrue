@@ -118,6 +118,54 @@ export interface JournalEntry {
   reflection: string;
 }
 
+export interface TradeEntry {
+  id: string;
+  tradeId: string;
+  action: "Buy" | "Sell";
+  symbol: string;
+  timestamp: string;
+  thesis: string;
+  catalyst?: string;
+  preMortem?: string;
+  outcomeNotes?: string;
+  linkedBuyEntryId?: string;
+  aiAnalysis?: {
+    thesisOutcome: "played_out" | "failed" | "mixed" | "too_early";
+    luckVsSkill: "mostly_skill" | "mostly_luck" | "mixed";
+    summary: string;
+    lesson: string;
+    confidence: "low" | "moderate" | "high";
+  };
+}
+
+export interface ResearchableTicker {
+  symbol: string;
+  name: string;
+  sector: string;
+  currentPrice: number;
+  dayChange: number;
+  dayChangePercent: number;
+  marketCap: number;
+  peRatio: number | null;
+}
+
+export interface MarketIndex {
+  symbol: string;
+  name: string;
+  value: number;
+  dayChange: number;
+  dayChangePercent: number;
+}
+
+export interface UserGoal {
+  label: string;
+  target: number;
+  current: number;
+  projectedDate: string;
+  onTrack: boolean;
+  confidencePercent: number;
+}
+
 export interface UserProfile {
   name: string;
   riskTolerance: "conservative" | "moderate" | "aggressive";
@@ -128,6 +176,7 @@ export interface UserProfile {
     target: number;
     byDate: string;
   };
+  goals: UserGoal[];
 }
 
 export interface Portfolio {
@@ -193,6 +242,24 @@ export const user: UserProfile = {
     target: 120000,
     byDate: "2028-12-31",
   },
+  goals: [
+    {
+      label: "House down payment — 2028",
+      target: 120000,
+      current: 99656.95,
+      projectedDate: "2028-06-15",
+      onTrack: true,
+      confidencePercent: 72,
+    },
+    {
+      label: "Emergency fund",
+      target: 25000,
+      current: 12430,
+      projectedDate: "2027-03-01",
+      onTrack: false,
+      confidencePercent: 48,
+    },
+  ],
 };
 
 // ─── Portfolio summary ───
@@ -206,10 +273,13 @@ export const portfolio: Portfolio = {
   timeWeightedReturn: 8.2,
   moneyWeightedReturn: 7.1,
   allocationBySector: {
-    Technology: 68.4,
-    "Consumer Discretionary": 14.2,
-    "Financial Services": 5.0,
-    Cash: 12.4,
+    Technology: 50.57,
+    "Consumer Discretionary": 14.26,
+    "Financial Services": 4.64,
+    Healthcare: 6.13,
+    "Consumer Staples": 4.90,
+    Energy: 7.03,
+    Cash: 12.47,
   },
 };
 
@@ -741,4 +811,108 @@ export const journalEntries: JournalEntry[] = [
     reflection:
       "I researched multiple sources before buying. The P/E ratio of 36 is high but justified by growth rate. I should monitor if growth decelerates.",
   },
+];
+
+// ─── Trade entries (§ 14 / § 17.4) ───
+
+export const tradeEntries: TradeEntry[] = [
+  {
+    id: "trade-entry-001",
+    tradeId: "txn-007",
+    action: "Buy",
+    symbol: "NVDA",
+    timestamp: "2025-10-05T10:32:00Z",
+    thesis:
+      "AI infrastructure spending is accelerating across hyperscalers. NVIDIA's data-center revenue grew 154% YoY and Blackwell GPU demand exceeds supply. I expect continued revenue beats for at least the next 2-3 quarters.",
+    catalyst:
+      "Q3 2025 earnings beat (19.29% surprise) confirmed sustained demand. Multiple cloud providers announced expanded capex budgets for 2026.",
+    preMortem:
+      "If AI spending slows or a viable competitor emerges (AMD MI300X gains share), NVDA could correct 30-40%. My cost basis would be underwater at $580 if it fell below that level. I am willing to hold through a 25% drawdown given my 5-10 year horizon.",
+  },
+  {
+    id: "trade-entry-002",
+    tradeId: "txn-002",
+    action: "Buy",
+    symbol: "AAPL",
+    timestamp: "2026-03-01T14:15:00Z",
+    thesis:
+      "Dollar-cost averaging into a core holding. Apple's services revenue hit a record $24.2B quarterly, providing growing recurring income. The iPhone installed base exceeds 1.2B devices, creating a durable moat for services monetization.",
+    catalyst:
+      "Services revenue record in Q1 2026. New AI features announced across product line should drive upgrade cycle and increased services attach rate.",
+    preMortem:
+      "If iPhone sales decline or services growth stalls, AAPL could trade down to $180-190. At $208.50 cost on this lot, I would lose about $185-285 on these 10 shares. Manageable given overall position sizing at ~11% of portfolio.",
+  },
+  {
+    id: "trade-entry-003",
+    tradeId: "sell-001",
+    action: "Sell",
+    symbol: "NVDA",
+    timestamp: "2026-04-10T11:45:00Z",
+    thesis:
+      "Trimming position after 41% gain to rebalance. NVDA allocation grew to 22% of portfolio, exceeding my 20% single-stock limit. Taking partial profits to fund emergency fund goal.",
+    outcomeNotes:
+      "Sold 3 shares at $870.50 for $2,611.50. Original cost basis on these shares was $580 each ($1,740 total). Realized gain of $871.50 (50.1%). Proceeds moved to cash to build emergency fund.",
+    linkedBuyEntryId: "trade-entry-001",
+    aiAnalysis: {
+      thesisOutcome: "played_out",
+      luckVsSkill: "mixed",
+      summary:
+        "Your thesis that AI infrastructure spending would drive sustained revenue growth was correct. NVDA beat earnings estimates for 4 consecutive quarters after your purchase. However, the magnitude of the gain (41%) was partly driven by broader market enthusiasm for AI stocks, which amplified the move beyond fundamentals alone.",
+      lesson:
+        "Setting a rebalancing threshold (20% single-stock limit) and following it helped you take profits systematically rather than emotionally. Consider documenting rebalancing rules in advance for future positions.",
+      confidence: "high",
+    },
+  },
+  {
+    id: "trade-entry-004",
+    tradeId: "txn-003",
+    action: "Buy",
+    symbol: "MSFT",
+    timestamp: "2026-02-14T09:50:00Z",
+    thesis:
+      "Azure cloud growth (29% YoY) and Copilot AI integration provide durable tailwinds. Microsoft's enterprise relationships make it the default choice for AI adoption in large organizations. Adding 15 shares while trading below consensus price target of $480.",
+    catalyst:
+      "Q4 2025 earnings beat (7.91% surprise) driven by Azure and Copilot seat expansion. Enterprise AI adoption is still early innings.",
+    preMortem:
+      "If cloud spending decelerates or Copilot adoption disappoints, MSFT could drop 10-15% to $350-375 range. At $415.30 cost, I would be down $600-975 on this lot. The P/E of 36x requires sustained growth to justify; any deceleration would compress the multiple.",
+    aiAnalysis: {
+      thesisOutcome: "too_early",
+      luckVsSkill: "mixed",
+      summary:
+        "Position is 2 months old with a 6.6% gain. Azure growth and Copilot adoption metrics from the most recent quarter support the thesis, but it is too early to evaluate whether the enterprise AI spending cycle will sustain the growth rate you projected.",
+      lesson:
+        "Check back after the next earnings report (expected late April 2026) for a more meaningful assessment of whether Azure growth is accelerating or decelerating.",
+      confidence: "moderate",
+    },
+  },
+];
+
+// ─── Researchable tickers catalog ───
+
+export const researchableTickers: ResearchableTicker[] = [
+  { symbol: "GOOGL", name: "Alphabet Inc.", sector: "Technology", currentPrice: 176.82, dayChange: 2.14, dayChangePercent: 1.22, marketCap: 2180000000000, peRatio: 24.6 },
+  { symbol: "META", name: "Meta Platforms Inc.", sector: "Technology", currentPrice: 512.30, dayChange: -3.85, dayChangePercent: -0.75, marketCap: 1310000000000, peRatio: 28.1 },
+  { symbol: "TSLA", name: "Tesla Inc.", sector: "Consumer Discretionary", currentPrice: 248.50, dayChange: 5.72, dayChangePercent: 2.35, marketCap: 792000000000, peRatio: 68.3 },
+  { symbol: "JPM", name: "JPMorgan Chase & Co.", sector: "Financial Services", currentPrice: 218.45, dayChange: 1.30, dayChangePercent: 0.60, marketCap: 628000000000, peRatio: 12.4 },
+  { symbol: "JNJ", name: "Johnson & Johnson", sector: "Healthcare", currentPrice: 162.18, dayChange: -0.42, dayChangePercent: -0.26, marketCap: 391000000000, peRatio: 15.8 },
+  { symbol: "KO", name: "The Coca-Cola Company", sector: "Consumer Staples", currentPrice: 63.47, dayChange: 0.18, dayChangePercent: 0.28, marketCap: 274000000000, peRatio: 25.2 },
+  { symbol: "XOM", name: "Exxon Mobil Corporation", sector: "Energy", currentPrice: 118.92, dayChange: -1.05, dayChangePercent: -0.88, marketCap: 497000000000, peRatio: 14.1 },
+  { symbol: "V", name: "Visa Inc.", sector: "Financial Services", currentPrice: 298.60, dayChange: 1.92, dayChangePercent: 0.65, marketCap: 612000000000, peRatio: 31.5 },
+  { symbol: "PG", name: "Procter & Gamble Co.", sector: "Consumer Staples", currentPrice: 168.35, dayChange: 0.55, dayChangePercent: 0.33, marketCap: 396000000000, peRatio: 26.8 },
+  { symbol: "UNH", name: "UnitedHealth Group Inc.", sector: "Healthcare", currentPrice: 528.14, dayChange: -4.20, dayChangePercent: -0.79, marketCap: 487000000000, peRatio: 21.3 },
+  { symbol: "SPY", name: "SPDR S&P 500 ETF Trust", sector: "ETF — Broad Market", currentPrice: 538.72, dayChange: 3.15, dayChangePercent: 0.59, marketCap: 530000000000, peRatio: null },
+  { symbol: "QQQ", name: "Invesco QQQ Trust", sector: "ETF — Technology", currentPrice: 462.85, dayChange: 4.28, dayChangePercent: 0.93, marketCap: 260000000000, peRatio: null },
+  { symbol: "VTI", name: "Vanguard Total Stock Market ETF", sector: "ETF — Broad Market", currentPrice: 272.40, dayChange: 1.58, dayChangePercent: 0.58, marketCap: 410000000000, peRatio: null },
+  { symbol: "BND", name: "Vanguard Total Bond Market ETF", sector: "ETF — Fixed Income", currentPrice: 72.58, dayChange: 0.08, dayChangePercent: 0.11, marketCap: 108000000000, peRatio: null },
+  { symbol: "VXUS", name: "Vanguard Total International Stock ETF", sector: "ETF — International", currentPrice: 59.14, dayChange: 0.32, dayChangePercent: 0.54, marketCap: 68000000000, peRatio: null },
+];
+
+// ─── Market indices for ticker strip ───
+
+export const marketIndices: MarketIndex[] = [
+  { symbol: "SPX", name: "S&P 500", value: 5412.35, dayChange: 32.18, dayChangePercent: 0.60 },
+  { symbol: "IXIC", name: "NASDAQ", value: 16928.74, dayChange: 148.52, dayChangePercent: 0.89 },
+  { symbol: "DJI", name: "DOW", value: 40215.80, dayChange: 125.65, dayChangePercent: 0.31 },
+  { symbol: "VIX", name: "VIX", value: 14.82, dayChange: -0.65, dayChangePercent: -4.20 },
+  { symbol: "BTC", name: "BTC", value: 72450.00, dayChange: 1285.00, dayChangePercent: 1.81 },
 ];

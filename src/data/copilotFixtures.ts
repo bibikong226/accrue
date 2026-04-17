@@ -713,6 +713,71 @@ export const fixturesById: Record<string, CopilotResponse> = {
     ],
   },
 
+  // ── REACTIVE — trades ──
+
+  "analyze.trade.buy1": {
+    id: "analyze.trade.buy1",
+    content:
+      "This NVDA buy on October 5, 2025 at $580.00 was based on the thesis that AI infrastructure build-out " +
+      "is a multi-year secular trend. The position is now at $878.56, a 51.5% gain. NVIDIA has beaten earnings " +
+      "estimates for 4 consecutive quarters, and data center revenue grew 154% year-over-year. " +
+      "The thesis has largely played out, though the magnitude of the gain was amplified by broader AI enthusiasm " +
+      "beyond pure fundamentals. The position grew to 22% of your portfolio, which exceeds typical single-stock " +
+      "concentration guidelines. Barber and Odean (2000) found that concentrated positions, while capable of " +
+      "outsized gains, also carry outsized risk.",
+    confidence: "high",
+    sources: [SOURCE_BARBER_ODEAN_2000, SOURCE_KAHNEMAN_TVERSKY_1979],
+    timestamp: new Date().toISOString(),
+    followUpSuggestions: [
+      "Is my NVDA position too large?",
+      "What is concentration risk?",
+      "Show my NVDA trade history",
+    ],
+  },
+
+  "analyze.trade.sell1": {
+    id: "analyze.trade.sell1",
+    content:
+      "Your NVDA trim on April 10, 2026 sold 3 shares at $870.50 for $2,611.50, realizing a $871.50 gain (50.1%). " +
+      "You originally bought these shares at $580.00. The sell was motivated by rebalancing -- NVDA had grown to 22% " +
+      "of your portfolio, exceeding your 20% single-stock limit. This is a disciplined approach: setting rebalancing " +
+      "thresholds in advance and following them removes emotion from the decision. " +
+      "Thaler (1999) describes this as overcoming the 'disposition effect' -- the tendency to hold winners too long. " +
+      "The proceeds were moved to cash to build your emergency fund, which is currently at $12,430 of your $25,000 target. " +
+      "Outcome: thesis played out. AI confidence: high.",
+    confidence: "high",
+    sources: [SOURCE_THALER_1999, SOURCE_ODEAN_1998],
+    timestamp: new Date().toISOString(),
+    followUpSuggestions: [
+      "Was selling NVDA the right decision?",
+      "How is my emergency fund progressing?",
+      "What is the disposition effect?",
+    ],
+  },
+
+  "lessons.across.trades": {
+    id: "lessons.across.trades",
+    content:
+      "Analyzing your 8 trade entries, several patterns emerge: " +
+      "1. Your strongest results came from planned, thesis-driven buys (AAPL at $152.40, up 40.6%; NVDA at $580, up 51.5%) " +
+      "rather than reactive trades. " +
+      "2. Dollar-cost averaging into core positions (AAPL, MSFT) has produced consistent, positive results. " +
+      "3. Your one sell (NVDA trim) followed a pre-set rebalancing rule, which is a best practice. " +
+      "4. Your thesis accuracy is strong: 4 of 8 trades have AI outcomes of 'played out,' 2 are 'mixed,' " +
+      "and 2 are 'too early' to evaluate. None have failed outright. " +
+      "5. Your biggest risk pattern is concentration -- 3 of 5 current holdings are in Technology (68.4% of portfolio). " +
+      "Benartzi and Thaler (2001) found this kind of sector clustering is common among individual investors. " +
+      "Consider whether future trades should target non-tech sectors for diversification.",
+    confidence: "moderate",
+    sources: [SOURCE_BENARTZI_THALER_2001, SOURCE_BARBER_ODEAN_2000, SOURCE_ODEAN_1998],
+    timestamp: new Date().toISOString(),
+    followUpSuggestions: [
+      "Which sectors should I consider?",
+      "What is my win rate?",
+      "How can I improve my trade process?",
+    ],
+  },
+
   // ── REACTIVE — what-if ──
 
   "simulate.allocationChange.AAPL": {
@@ -774,6 +839,11 @@ export const keywordMappings: KeywordMapping[] = [
   { keywords: ["chart aapl 1m", "aapl 1 month", "apple 1 month chart", "aapl month"], fixtureId: "explain.chart.AAPL.1M" },
   { keywords: ["chart aapl 1y", "aapl 1 year", "apple 1 year chart", "aapl year"], fixtureId: "explain.chart.AAPL.1Y" },
   { keywords: ["chart nvda 1m", "nvda 1 month", "nvidia 1 month chart", "nvda month"], fixtureId: "explain.chart.NVDA.1M" },
+
+  // Trades
+  { keywords: ["analyze buy", "nvda buy", "buy trade", "trade buy"], fixtureId: "analyze.trade.buy1" },
+  { keywords: ["analyze sell", "nvda sell", "sell trade", "trade sell", "trim"], fixtureId: "analyze.trade.sell1" },
+  { keywords: ["lessons", "patterns across", "trade patterns", "across trades", "trade insights"], fixtureId: "lessons.across.trades" },
 
   // What-if
   { keywords: ["what if", "simulate", "hypothetical", "if i bought"], fixtureId: "simulate.allocationChange.AAPL" },
