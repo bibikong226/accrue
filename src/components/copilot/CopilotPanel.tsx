@@ -28,7 +28,14 @@ const STARTER_PROMPTS = [
  * - All interactive elements min 44x44px
  * - Visible focus indicators on all controls
  */
-export default function CopilotPanel() {
+interface CopilotPanelProps {
+  /** When set, the panel opens and auto-sends this query */
+  initialQuery?: string | null;
+  /** Called when the panel consumes the initial query, so parent can clear it */
+  onInitialQueryConsumed?: () => void;
+}
+
+export default function CopilotPanel({ initialQuery, onInitialQueryConsumed }: CopilotPanelProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -57,6 +64,20 @@ export default function CopilotPanel() {
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
+
+  /* Handle initialQuery from parent (e.g., "What Changed" chips) */
+  useEffect(() => {
+    if (initialQuery) {
+      setIsOpen(true);
+      // Small delay to allow panel to render before sending
+      const timer = setTimeout(() => {
+        handleSend(initialQuery);
+        onInitialQueryConsumed?.();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery]);
 
   /* Focus input when panel opens */
   useEffect(() => {

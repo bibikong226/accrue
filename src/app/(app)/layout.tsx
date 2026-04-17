@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { announce } from "@/lib/a11y/useAnnouncer";
+import CopilotPanel from "@/components/copilot/CopilotPanel";
 
 /* ─── Navigation items ─── */
 const NAV_ITEMS = [
@@ -15,94 +15,10 @@ const NAV_ITEMS = [
   { href: "/help", label: "Help" },
 ] as const;
 
-/* ─── Copilot Panel (inline) ─── */
-function CopilotPanel({
-  isOpen,
-  onClose,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return (
-    <aside
-      id="copilot-panel"
-      ref={panelRef}
-      aria-label="AI Copilot"
-      className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-surface-raised border-l border-border-default shadow-lg z-40 flex flex-col"
-    >
-      <div className="flex items-center justify-between p-4 border-b border-border-default">
-        <h2 className="text-lg font-semibold text-primary">Ask Accrue</h2>
-        <button
-          onClick={onClose}
-          aria-label="Close AI Copilot"
-          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md border border-border-default hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-        >
-          <span aria-hidden="true">&#10005;</span>
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="rounded-lg bg-surface-sunken p-4 mb-4">
-          <p className="text-sm text-secondary">
-            <span
-              className="inline-block px-1.5 py-0.5 text-xs font-medium bg-feedback-info text-inverse rounded mr-2"
-              aria-label="AI generated content"
-            >
-              AI
-            </span>
-            Hi! I am the Accrue AI Copilot. I can help explain financial
-            concepts, summarize your portfolio, or answer questions about
-            investing. I will never recommend specific trades.
-          </p>
-          <p className="text-xs text-muted mt-2">
-            Confidence: High | Source: Accrue platform
-          </p>
-        </div>
-      </div>
-      <form
-        className="p-4 border-t border-border-default"
-        onSubmit={(e) => {
-          e.preventDefault();
-          announce("AI Copilot responses are currently using mock data.", "polite");
-        }}
-      >
-        <label htmlFor="copilot-input" className="sr-only">
-          Ask the AI Copilot a question
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="copilot-input"
-            ref={inputRef}
-            type="text"
-            placeholder="Ask a question..."
-            className="flex-1 min-h-[44px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-          />
-          <button
-            type="submit"
-            className="min-w-[44px] min-h-[44px] px-4 rounded-md bg-action-primary text-inverse font-medium hover:bg-action-primary-hover focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-          >
-            Send
-          </button>
-        </div>
-      </form>
-    </aside>
-  );
-}
-
 /* ─── App Shell Layout ─── */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [copilotInitialQuery, setCopilotInitialQuery] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const previousPathname = useRef(pathname);
 
@@ -116,40 +32,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  /* Ctrl+/ keyboard shortcut for copilot */
-  const handleGlobalKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "/") {
-        e.preventDefault();
-        setCopilotOpen((prev) => {
-          const next = !prev;
-          announce(
-            next ? "AI Copilot opened" : "AI Copilot closed",
-            "polite"
-          );
-          return next;
-        });
-      }
-    },
-    []
-  );
-
+  /* Listen for copilot query events from dashboard chips and other sources */
   useEffect(() => {
-    document.addEventListener("keydown", handleGlobalKeyDown);
-    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [handleGlobalKeyDown]);
-
-  const toggleCopilot = () => {
-    setCopilotOpen((prev) => {
-      const next = !prev;
-      announce(next ? "AI Copilot opened" : "AI Copilot closed", "polite");
-      return next;
-    });
-  };
+    function handleCopilotQuery(e: Event) {
+      const query = (e as CustomEvent).detail;
+      setCopilotInitialQuery(query);
+    }
+    window.addEventListener("accrue-copilot-query", handleCopilotQuery);
+    return () => window.removeEventListener("accrue-copilot-query", handleCopilotQuery);
+  }, []);
 
   return (
     <>
-      {/* Skip links — FIRST focusable elements */}
+      {/* Skip links -- FIRST focusable elements */}
       <a href="#main" className="skip-link">
         Skip to main content
       </a>
@@ -195,16 +90,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </ul>
             </nav>
 
-            {/* Ask Accrue Copilot Toggle */}
-            <button
-              onClick={toggleCopilot}
-              aria-expanded={copilotOpen}
-              aria-controls="copilot-panel"
-              className="min-w-[44px] min-h-[44px] px-4 py-2 rounded-md border border-border-default text-sm font-medium text-secondary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-            >
-              Ask Accrue
-              <span className="sr-only"> (Ctrl + /)</span>
-            </button>
+            {/* Spacer — the CopilotPanel component renders its own toggle button */}
+            <div />
           </div>
         </header>
 
@@ -218,11 +105,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         <CopilotPanel
-          isOpen={copilotOpen}
-          onClose={() => {
-            setCopilotOpen(false);
-            announce("AI Copilot closed", "polite");
-          }}
+          initialQuery={copilotInitialQuery}
+          onInitialQueryConsumed={() => setCopilotInitialQuery(null)}
         />
 
         <footer className="bg-surface-raised border-t border-border-default px-4 py-4 mt-auto">

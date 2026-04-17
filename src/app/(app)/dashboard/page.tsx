@@ -5,7 +5,9 @@ import {
   portfolioSummary,
   holdings,
   type Holding,
+  generatePriceHistory,
 } from "@/data/mockPortfolio";
+import ChartWrapper from "@/components/chart/ChartWrapper";
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -141,6 +143,7 @@ const followUpChips = [
 ];
 
 export default function DashboardPage() {
+  const [chartRange, setChartRange] = useState<"1W" | "1M" | "3M" | "1Y" | "All">("1M");
   const [whatChangedDismissed, setWhatChangedDismissed] = useState(false);
   const [milestoneDismissed, setMilestoneDismissed] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("marketValue");
@@ -246,12 +249,13 @@ export default function DashboardPage() {
                     <button
                       key={chip}
                       className="px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-full border border-border-default text-secondary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-                      onClick={() =>
-                        announce(
-                          "Opening AI Copilot is currently mocked.",
-                          "polite"
-                        )
-                      }
+                      onClick={() => {
+                        window.dispatchEvent(
+                          new CustomEvent("accrue-copilot-query", {
+                            detail: chip,
+                          })
+                        );
+                      }}
                     >
                       {chip}
                     </button>
@@ -280,8 +284,17 @@ export default function DashboardPage() {
         </h2>
         <div className="bg-surface-raised border border-border-default rounded-lg p-6">
           <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* a11y: tabIndex={0} on each financial metric so Tab stops here
+                and VoiceOver reads the label+value pair. role="group" with
+                aria-label provides a complete reading even if dt/dd aren't
+                announced as pairs in all VoiceOver modes. */}
             {/* Portfolio Value */}
-            <div>
+            <div
+              tabIndex={0}
+              role="group"
+              aria-label={`Portfolio Value: ${formatCurrency(portfolioSummary.totalValue)}`}
+              className="focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md p-1"
+            >
               <dt className="text-sm font-medium text-muted">
                 Portfolio Value
               </dt>
@@ -291,7 +304,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Today's Change */}
-            <div>
+            <div
+              tabIndex={0}
+              role="group"
+              aria-label={`Today's Change: ${todayDisplay.text}`}
+              className="focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md p-1"
+            >
               <dt className="text-sm font-medium text-muted">
                 Today&apos;s Change
               </dt>
@@ -314,7 +332,12 @@ export default function DashboardPage() {
             </div>
 
             {/* All-time TWR */}
-            <div>
+            <div
+              tabIndex={0}
+              role="group"
+              aria-label={`All-time Return, Time-Weighted: ${formatSignedPercent(twrPercent)}`}
+              className="focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md p-1"
+            >
               <dt className="text-sm font-medium text-muted">
                 All-time Return{" "}
                 <abbr
@@ -343,7 +366,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Your Return MWR */}
-            <div>
+            <div
+              tabIndex={0}
+              role="group"
+              aria-label={`Your Return, Money-Weighted: ${formatSignedPercent(mwrPercent)}`}
+              className="focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md p-1"
+            >
               <dt className="text-sm font-medium text-muted">
                 Your Return{" "}
                 <abbr
@@ -372,6 +400,22 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* ─── Section 2b: Portfolio Performance Chart ─── */}
+      <section aria-labelledby="portfolio-chart-heading" className="mb-6">
+        <h2
+          id="portfolio-chart-heading"
+          className="text-lg font-semibold text-primary mb-3"
+        >
+          Portfolio Performance
+        </h2>
+        <div className="bg-surface-raised border border-border-default rounded-lg p-4">
+          <ChartWrapper
+            data={holdings[0].priceHistory}
+            title={`Portfolio ${portfolioSummary.totalGainLossPercent >= 0 ? "up" : "down"} ${Math.abs(portfolioSummary.totalGainLossPercent).toFixed(1)}% overall`}
+          />
+        </div>
+      </section>
+
       {/* ─── Section 3: Goal Progress ─── */}
       <section aria-labelledby="goal-progress-heading" className="mb-6">
         <h2
@@ -381,7 +425,12 @@ export default function DashboardPage() {
           Goal Progress
         </h2>
         <div className="bg-surface-raised border border-border-default rounded-lg p-6">
-          <div className="flex items-center gap-3 mb-4">
+          <div
+            tabIndex={0}
+            role="group"
+            aria-label={`Goal status: ${goalStatusLabels[goalStatus]}`}
+            className="flex items-center gap-3 mb-4 focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 rounded-md p-1"
+          >
             <span
               className={`text-sm font-bold ${goalStatusColors[goalStatus]}`}
             >
@@ -522,16 +571,33 @@ export default function DashboardPage() {
         </h2>
         <div className="bg-surface-raised border border-border-default rounded-lg p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Donut placeholder (aria-hidden because the table below is the accessible version) */}
+            {/* Donut chart (aria-hidden because the table below is the accessible version) */}
             <div
               aria-hidden="true"
               className="flex items-center justify-center"
             >
-              <div className="w-48 h-48 rounded-full border-8 border-action-primary flex items-center justify-center bg-surface-sunken">
-                <span className="text-sm font-medium text-muted">
-                  {sectorAllocation.length} sectors
-                </span>
-              </div>
+              {(() => {
+                const colors = ['#2563EB', '#047857', '#B91C1C', '#B45309', '#71717A', '#1E40AF'];
+                let cumulative = 0;
+                const gradientStops = sectorAllocation.map((s, i) => {
+                  const start = cumulative;
+                  cumulative += s.percent;
+                  return `${colors[i % colors.length]} ${start}% ${cumulative}%`;
+                }).join(', ');
+                return (
+                  <div
+                    className="w-48 h-48 rounded-full relative"
+                    style={{ background: `conic-gradient(${gradientStops})` }}
+                  >
+                    <div className="absolute inset-6 rounded-full bg-surface-raised flex items-center justify-center">
+                      <div className="text-center">
+                        <span className="text-lg font-bold tabular-nums">{formatCurrency(portfolioSummary.totalValue)}</span>
+                        <span className="block text-xs text-muted">{sectorAllocation.length} sectors</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Accessible allocation table */}
@@ -581,8 +647,13 @@ export default function DashboardPage() {
             </table>
           </div>
 
-          {/* Diversification indicator */}
-          <div className="mt-4 p-3 rounded-md bg-surface-sunken">
+          {/* Diversification indicator — tabIndex so Tab stops here */}
+          <div
+            tabIndex={0}
+            role="group"
+            aria-label={`Diversification: ${isDiversified ? "Well Diversified" : "Concentration Risk"}`}
+            className="mt-4 p-3 rounded-md bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+          >
             <p className="text-sm text-secondary">
               <span
                 className={`font-semibold ${isDiversified ? "text-gain" : "text-feedback-warning"}`}

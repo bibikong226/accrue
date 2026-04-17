@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { holdings, portfolioSummary } from "@/data/mockPortfolio";
+import ChartWrapper from "@/components/chart/ChartWrapper";
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -144,16 +145,12 @@ function GlossaryTerm({
   );
 }
 
-/* ─── Chart time ranges ─── */
-const TIME_RANGES = ["1W", "1M", "3M", "6M", "1Y", "ALL"] as const;
-
 export default function ResearchDetailPage() {
   const params = useParams();
   const ticker = (params.ticker as string).toUpperCase();
   const holding = holdings.find((h) => h.symbol === ticker);
 
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
-  const [selectedRange, setSelectedRange] = useState<string>("1Y");
   const panelRef = useRef<HTMLDivElement>(null);
 
   if (!holding) {
@@ -291,37 +288,11 @@ export default function ResearchDetailPage() {
           Price Chart
         </h2>
         <div className="bg-surface-raised border border-border-default rounded-lg p-4">
-          {/* Time range selectors */}
-          <div className="flex gap-1 mb-4" role="group" aria-label="Chart time range">
-            {TIME_RANGES.map((range) => (
-              <button
-                key={range}
-                onClick={() => {
-                  setSelectedRange(range);
-                  announce(`Chart range changed to ${range}`, "polite");
-                }}
-                aria-pressed={selectedRange === range}
-                className={`min-h-[44px] min-w-[44px] px-3 py-2 text-sm font-medium rounded-md focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${
-                  selectedRange === range
-                    ? "bg-action-primary text-inverse"
-                    : "text-muted hover:bg-surface-sunken hover:text-primary"
-                }`}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
-
-          {/* Chart placeholder with accessible data table */}
-          <div
-            aria-hidden="true"
-            className="h-48 bg-surface-sunken rounded-md flex items-center justify-center text-muted text-sm"
-          >
-            Chart: {ticker} price over {selectedRange} (visual placeholder
-            &mdash; see data table below)
-          </div>
+          <ChartWrapper
+            data={holding.priceHistory}
+            title={`${ticker} Price`}
+          />
           <p className="text-xs text-muted mt-2">
-            Price data for {ticker} over the last {selectedRange}.{" "}
             {holding.currentPrice > holding.averageCost
               ? `Currently trading above your average cost of ${formatCurrency(holding.averageCost)}.`
               : `Currently trading below your average cost of ${formatCurrency(holding.averageCost)}.`}
