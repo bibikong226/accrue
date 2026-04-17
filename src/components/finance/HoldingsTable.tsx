@@ -291,8 +291,9 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                   tabIndex={0}
                   /* a11y: aria-expanded communicates whether the detail row is shown */
                   aria-expanded={isExpanded}
-                  /* a11y: aria-label provides context that this row is expandable */
-                  aria-label={`${holding.symbol}, ${holding.name}. ${isExpanded ? "Details expanded" : "Press Enter to expand details"}`}
+                  /* a11y: aria-label includes ALL financial data so keyboard/SR users hear everything.
+                     Without this, VoiceOver only reads the aria-label and skips cell contents. */
+                  aria-label={`${holding.symbol}, ${holding.name}. ${holding.shares} shares. Average cost ${formatCurrency(holding.avgCost)}. Current price ${formatCurrency(holding.currentPrice)}. Market value ${formatCurrency(holding.marketValue)}. ${holding.gainLoss >= 0 ? "Gain" : "Loss"} ${formatCurrency(Math.abs(holding.gainLoss))}, ${holding.gainLossPercent >= 0 ? "up" : "down"} ${Math.abs(holding.gainLossPercent).toFixed(2)} percent. ${isExpanded ? "Details expanded, press Enter to collapse" : "Press Enter to expand details"}`}
                   onClick={() => toggleRow(holding.symbol)}
                   onKeyDown={(e) => handleRowKeyDown(e, holding.symbol)}
                   className={[
@@ -337,20 +338,22 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                 {isExpanded && (
                   <tr className="border-b border-border-default bg-surface-sunken">
                     <td colSpan={7} className="py-4 px-6" id={`expansion-${holding.symbol}`} tabIndex={-1}>
+                      {/* a11y: Each dt/dd pair has tabIndex={0} + role="group" + aria-label
+                          so Tab stops on each data item and VoiceOver reads "Cost Basis: $1,724.00" */}
                       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-sm">
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Cost Basis: ${formatCurrency(costBasis)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Cost Basis</dt>
                           <dd className="text-primary tabular-nums mt-0.5">
                             {formatCurrency(costBasis)}
                           </dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Total Return: ${formatCurrency(totalReturn)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Total Return</dt>
                           <dd className="mt-0.5">
                             {renderGainLoss(totalReturn, "currency")}
                           </dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Total Return Percent: ${totalReturnPercent >= 0 ? "up" : "down"} ${Math.abs(totalReturnPercent).toFixed(2)} percent`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">
                             Total Return %
                           </dt>
@@ -358,18 +361,18 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                             {renderGainLoss(totalReturnPercent, "percent")}
                           </dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Sector: ${holding.sector}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Sector</dt>
                           <dd className="text-primary mt-0.5">{holding.sector}</dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Allocation: ${holding.allocation.toFixed(2)} percent of portfolio`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Allocation</dt>
                           <dd className="text-primary tabular-nums mt-0.5">
                             {holding.allocation.toFixed(2)}%
                           </dd>
                         </div>
                         {holding.fundamentals.peRatio !== null && (
-                          <div>
+                          <div tabIndex={0} role="group" aria-label={`P/E Ratio: ${holding.fundamentals.peRatio.toFixed(1)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                             <dt className="text-muted font-medium">P/E Ratio</dt>
                             <dd className="text-primary tabular-nums mt-0.5">
                               {holding.fundamentals.peRatio.toFixed(1)}
@@ -377,7 +380,7 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                           </div>
                         )}
                         {holding.fundamentals.dividendYield !== null && (
-                          <div>
+                          <div tabIndex={0} role="group" aria-label={`Dividend Yield: ${holding.fundamentals.dividendYield.toFixed(2)} percent`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                             <dt className="text-muted font-medium">
                               Dividend Yield
                             </dt>
@@ -387,7 +390,7 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                           </div>
                         )}
                         {holding.analystRatings.priceTargetMean > 0 && (
-                          <div>
+                          <div tabIndex={0} role="group" aria-label={`Analyst Target: ${formatCurrency(holding.analystRatings.priceTargetMean)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                             <dt className="text-muted font-medium">
                               Analyst Target
                             </dt>
@@ -398,7 +401,7 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                             </dd>
                           </div>
                         )}
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`52-week Range: ${formatCurrency(holding.fundamentals.week52Low)} to ${formatCurrency(holding.fundamentals.week52High)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">
                             52-week Range
                           </dt>
@@ -406,19 +409,19 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                             {formatCurrency(holding.fundamentals.week52Low)} &ndash; {formatCurrency(holding.fundamentals.week52High)}
                           </dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Shares: ${holding.shares}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Shares</dt>
                           <dd className="text-primary tabular-nums mt-0.5">
                             {holding.shares}
                           </dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Last Price: ${formatCurrency(holding.currentPrice)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Last Price</dt>
                           <dd className="text-primary tabular-nums mt-0.5">
                             {formatCurrency(holding.currentPrice)}
                           </dd>
                         </div>
-                        <div>
+                        <div tabIndex={0} role="group" aria-label={`Average Cost: ${formatCurrency(holding.avgCost)}`} className="focus-visible:outline-2 focus-visible:outline-focus-ring rounded p-1">
                           <dt className="text-muted font-medium">Avg Cost</dt>
                           <dd className="text-primary tabular-nums mt-0.5">
                             {formatCurrency(holding.avgCost)}
