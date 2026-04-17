@@ -86,10 +86,7 @@ function ReviewContent() {
     ? Math.round(holding.gainLossDollar * 0.15 * 100) / 100
     : 0;
 
-  const [journalEntry, setJournalEntry] = useState("");
-  const [regretRehearsal, setRegretRehearsal] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
-  const [journalError, setJournalError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
@@ -98,23 +95,8 @@ function ReviewContent() {
   const riskRows = getRiskRows(symbol, action, total);
 
   const handleConfirm = () => {
-    let hasError = false;
-
-    if (journalEntry.length < 12) {
-      setJournalError(
-        "Please write at least 12 characters explaining your reasoning for this trade."
-      );
-      hasError = true;
-    } else {
-      setJournalError("");
-    }
-
     if (!acknowledged) {
       announceError("You must acknowledge that this places a real order.");
-      hasError = true;
-    }
-
-    if (hasError) {
       setSubmitted(true);
       return;
     }
@@ -189,10 +171,10 @@ function ReviewContent() {
               View Portfolio
             </Link>
             <Link
-              href="/history"
+              href="/activity"
               className="inline-flex items-center min-h-[44px] px-6 py-2 rounded-md border border-border-default text-secondary font-medium hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
             >
-              Transaction History
+              Activity
             </Link>
           </div>
         </div>
@@ -321,111 +303,6 @@ function ReviewContent() {
               </div>
             ))}
           </dl>
-        </div>
-      </section>
-
-      {/* ─── Decision Journal ─── */}
-      <section aria-labelledby="journal-heading" className="mb-6">
-        <h2
-          id="journal-heading"
-          className="text-lg font-semibold text-primary mb-3"
-        >
-          Decision Journal
-        </h2>
-        <div className="bg-surface-raised border border-border-default rounded-lg p-6">
-          <div className="mb-4">
-            <label
-              htmlFor="journal-entry"
-              className="block text-sm font-semibold text-primary mb-1"
-            >
-              Why are you making this trade? <span aria-hidden="true">*</span>
-              <span className="sr-only">(required, minimum 12 characters)</span>
-            </label>
-            <textarea
-              id="journal-entry"
-              value={journalEntry}
-              onChange={(e) => {
-                setJournalEntry(e.target.value);
-                if (e.target.value.length >= 12) setJournalError("");
-              }}
-              aria-describedby={
-                journalError ? "journal-error" : "journal-help"
-              }
-              aria-invalid={journalError ? "true" : undefined}
-              rows={3}
-              className={`w-full min-h-[88px] px-3 py-2 rounded-md border ${
-                journalError
-                  ? "border-feedback-error"
-                  : "border-border-default"
-              } bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2`}
-              placeholder="Write your reasoning here..."
-            />
-            {journalError ? (
-              <p
-                id="journal-error"
-                className="text-sm text-feedback-error mt-1"
-                role="alert"
-              >
-                {journalError}
-              </p>
-            ) : (
-              <p id="journal-help" className="text-xs text-muted mt-1">
-                {journalEntry.length}/12 characters minimum.
-                Writing your reasoning helps you make more deliberate decisions
-                and learn from past trades.
-              </p>
-            )}
-          </div>
-
-          {/* On sell: surface original buy thesis and ask what happened */}
-          {action === "sell" && (
-            <div className="mb-4 p-3 bg-surface-sunken rounded-md">
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">
-                Your original buy thesis
-              </p>
-              <p className="text-sm text-secondary italic mb-3">
-                &quot;I believe {symbol} has strong long-term growth potential based on fundamentals and sector trends.&quot;
-              </p>
-              <label
-                htmlFor="sell-reflection"
-                className="block text-sm font-semibold text-primary mb-1"
-              >
-                What happened since then? (optional)
-              </label>
-              <textarea
-                id="sell-reflection"
-                value={regretRehearsal}
-                onChange={(e) => setRegretRehearsal(e.target.value)}
-                rows={2}
-                className="w-full min-h-[66px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-                placeholder="Describe what changed since your original thesis..."
-              />
-            </div>
-          )}
-
-          {/* On buy: What would make this fail? */}
-          {action !== "sell" && (
-            <div className="mb-4">
-              <label
-                htmlFor="failure-rehearsal"
-                className="block text-sm font-semibold text-primary mb-1"
-              >
-                What would make this fail? (optional)
-              </label>
-              <p className="text-xs text-muted mb-2">
-                Thinking about conditions that would invalidate your thesis
-                helps you make more deliberate decisions.
-              </p>
-              <textarea
-                id="failure-rehearsal"
-                value={regretRehearsal}
-                onChange={(e) => setRegretRehearsal(e.target.value)}
-                rows={2}
-                className="w-full min-h-[66px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
-                placeholder="This trade would fail if..."
-              />
-            </div>
-          )}
         </div>
       </section>
 

@@ -10,9 +10,7 @@ import TickerStrip from "@/components/finance/TickerStrip";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/research", label: "Research" },
-  { href: "/orders", label: "Trade" },
-  { href: "/history", label: "History" },
-  { href: "/trades", label: "Trades" },
+  { href: "/activity", label: "Activity" },
   { href: "/help", label: "Help" },
 ] as const;
 

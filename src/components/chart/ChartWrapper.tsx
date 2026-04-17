@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect, useId } from "react";
+import React, { useState, useRef, useCallback, useEffect, useId, useMemo } from "react";
 import type { DataPoint } from "@/data/mockPortfolio";
 import { announce } from "@/lib/a11y/useAnnouncer";
+import { buildChartNarration } from "@/lib/chart/narration";
+import { playOverviewEarcon, speakPoint } from "@/lib/chart/audio";
+import { fixturesById } from "@/data/copilotFixtures";
+import AIResponse from "@/components/copilot/AIResponse";
 
 /* ─── Types ─── */
 
@@ -12,6 +16,8 @@ type ViewMode = "visual" | "audio" | "text";
 interface ChartWrapperProps {
   /** Title for the chart (used in captions and labels) */
   title: string;
+  /** Ticker symbol for narration and AI fixtures (e.g., "AAPL") */
+  ticker?: string;
   /** Data keyed by time range */
   data: Record<TimeRange, DataPoint[]>;
   /** Format a numeric value for display (e.g., currency formatter) */
@@ -57,6 +63,7 @@ function computeChange(current: number, previous: number): { abs: number; pct: n
  */
 export default function ChartWrapper({
   title,
+  ticker,
   data,
   formatValue = defaultFormat,
 }: ChartWrapperProps) {
@@ -69,10 +76,62 @@ export default function ChartWrapper({
   const modeTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const uniqueId = useId();
 
+  const [activeZone, setActiveZone] = useState<string | null>(null);
+
   const points = data[activeRange] || [];
   const activePoint = points[activePointIndex];
 
   const timeRanges: TimeRange[] = ["1W", "1M", "3M", "1Y", "All"];
+
+  /* ─── Chart narration (always visible below chart) ─── */
+  const timeframeLabel: Record<TimeRange, string> = {
+    "1W": "week",
+    "1M": "month",
+    "3M": "3 months",
+    "1Y": "year",
+    All: "all time",
+  };
+
+  const narration = useMemo(() => {
+    const tickerName = ticker || title;
+    return buildChartNarration({
+      ticker: tickerName,
+      timeframe: timeframeLabel[activeRange],
+      points: points.map((p) => ({ date: p.date, value: p.value })),
+    });
+  }, [ticker, title, activeRange, points]);
+
+  /* ─── AI fixture for chart explanation ─── */
+  const chartFixtureId = ticker ? `explain.chart.${ticker}.${activeRange}` : null;
+  const chartAIResponse = chartFixtureId ? fixturesById[chartFixtureId] : undefined;
+
+  /* ─── Semantic zone descriptions ─── */
+  const zoneDescriptions = useMemo(() => {
+    if (points.length < 2) return null;
+    const first = points[0];
+    const last = points[points.length - 1];
+    const high = points.reduce((a, b) => (a.value > b.value ? a : b));
+    const low = points.reduce((a, b) => (a.value < b.value ? a : b));
+    const delta = last.value - first.value;
+    const deltaPct = (delta / first.value) * 100;
+
+    /* Volatility calc */
+    const changes: number[] = [];
+    for (let i = 1; i < points.length; i++) {
+      changes.push(Math.abs((points[i].value - points[i-1].value) / points[i-1].value) * 100);
+    }
+    const avgChange = changes.length > 0 ? changes.reduce((a, b) => a + b, 0) / changes.length : 0;
+    const volLabel = avgChange < 0.5 ? "low" : avgChange < 1.5 ? "moderate" : "high";
+
+    return {
+      Trend: `Overall trend: ${deltaPct > 1 ? "upward" : deltaPct < -1 ? "downward" : "sideways"}, ${Math.abs(deltaPct).toFixed(1)}% change from $${first.value.toFixed(2)} to $${last.value.toFixed(2)}.`,
+      Extrema: `Peak: $${high.value.toFixed(2)} on ${high.date}. Low: $${low.value.toFixed(2)} on ${low.date}. Range: $${(high.value - low.value).toFixed(2)}.`,
+      Volatility: `Volatility is ${volLabel}. Average daily move: ${avgChange.toFixed(2)}%.`,
+      Events: ticker
+        ? `Check the AI analysis below for events that may have influenced ${ticker} during this period.`
+        : "No event data available for this chart.",
+    };
+  }, [points, ticker]);
   const modes: { key: ViewMode; label: string }[] = [
     { key: "visual", label: "Visual" },
     { key: "audio", label: "Audio" },
@@ -501,34 +560,62 @@ export default function ChartWrapper({
       >
         {activeMode === "audio" && (
           <div className="space-y-3">
-            {renderPointInfo()}
-            {/* Slider for audio mode too */}
-            <div
-              /* a11y: role="slider" provides semantic slider behavior for keyboard navigation */
-              role="slider"
-              /* a11y: tabIndex={0} makes the slider keyboard-focusable */
-              tabIndex={0}
-              /* a11y: aria-label provides context for the audio scrub slider */
-              aria-label={`${title} audio scrub. Use arrow keys to step through data points.`}
-              /* a11y: aria-valuemin defines minimum slider value */
-              aria-valuemin={0}
-              /* a11y: aria-valuemax defines maximum slider value */
-              aria-valuemax={points.length - 1}
-              /* a11y: aria-valuenow communicates current position */
-              aria-valuenow={activePointIndex}
-              /* a11y: aria-valuetext provides human-readable current value */
-              aria-valuetext={activePoint ? `${formatDate(activePoint.date)}, ${formatValue(activePoint.value)}` : undefined}
-              onKeyDown={handleSliderKeyDown}
+            {/* Play overview earcon button */}
+            <button
+              type="button"
+              onClick={() => {
+                playOverviewEarcon(points.map((p) => ({ date: p.date, value: p.value })));
+                announce("Playing audio overview of chart data.", "polite");
+              }}
+              /* a11y: aria-label provides accessible name for the play overview action */
+              aria-label={`Play audio overview of ${title} chart`}
               className={[
-                "w-full min-h-[44px] px-3 py-2",
-                "rounded-lg border border-border-default",
-                "bg-surface-sunken text-sm text-muted text-center",
-                "cursor-pointer",
+                "min-h-[44px] min-w-[44px] px-4 py-2",
+                "rounded-lg bg-action-primary text-inverse",
+                "text-sm font-medium",
+                "hover:bg-action-primary-hover",
                 "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
               ].join(" ")}
             >
-              Audio scrub: point {activePointIndex + 1} of {points.length}
+              Play overview
+            </button>
+
+            {renderPointInfo()}
+
+            {/* Scrub slider that speaks each point */}
+            <div>
+              <label htmlFor={`audio-scrub-${uniqueId}`} className="block text-xs text-muted mb-1">
+                Scrub through data points
+              </label>
+              <input
+                id={`audio-scrub-${uniqueId}`}
+                type="range"
+                min={0}
+                max={points.length - 1}
+                value={activePointIndex}
+                onChange={(e) => {
+                  const idx = parseInt(e.target.value, 10);
+                  setActivePointIndex(idx);
+                  announcePoint(idx);
+                  if (points[idx]) {
+                    speakPoint({ date: points[idx].date, value: points[idx].value }, idx, points.length);
+                  }
+                }}
+                /* a11y: aria-label provides context for the audio scrub slider */
+                aria-label={`${title} audio scrub. Drag to step through data points.`}
+                /* a11y: aria-valuetext provides human-readable current value */
+                aria-valuetext={activePoint ? `${formatDate(activePoint.date)}, ${formatValue(activePoint.value)}` : undefined}
+                className={[
+                  "w-full min-h-[44px]",
+                  "cursor-pointer",
+                  "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+                ].join(" ")}
+              />
+              <p className="text-xs text-muted text-center mt-1">
+                Point {activePointIndex + 1} of {points.length}
+              </p>
             </div>
+
             {/* Previous / Next buttons for mouse users */}
             <div className="flex gap-2">
               <button
@@ -537,6 +624,9 @@ export default function ChartWrapper({
                   const newIdx = Math.max(activePointIndex - 1, 0);
                   setActivePointIndex(newIdx);
                   announcePoint(newIdx);
+                  if (points[newIdx]) {
+                    speakPoint({ date: points[newIdx].date, value: points[newIdx].value }, newIdx, points.length);
+                  }
                 }}
                 disabled={activePointIndex === 0}
                 /* a11y: aria-label provides accessible name for the previous button */
@@ -558,6 +648,9 @@ export default function ChartWrapper({
                   const newIdx = Math.min(activePointIndex + 1, points.length - 1);
                   setActivePointIndex(newIdx);
                   announcePoint(newIdx);
+                  if (points[newIdx]) {
+                    speakPoint({ date: points[newIdx].date, value: points[newIdx].value }, newIdx, points.length);
+                  }
                 }}
                 disabled={activePointIndex === points.length - 1}
                 /* a11y: aria-label provides accessible name for the next button */
@@ -574,6 +667,59 @@ export default function ChartWrapper({
                 Next {"\u2192"}
               </button>
             </div>
+
+            {/* ─── Semantic Zone Buttons ─── */}
+            {zoneDescriptions && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide">
+                  Explore by zone
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(["Trend", "Extrema", "Volatility", "Events"] as const).map((zone) => {
+                    const isActive = activeZone === zone;
+                    return (
+                      <button
+                        key={zone}
+                        type="button"
+                        aria-pressed={isActive}
+                        onClick={() => {
+                          setActiveZone(isActive ? null : zone);
+                          const desc = zoneDescriptions[zone];
+                          announce(desc, "polite");
+                          /* Also speak aloud for BLV users in audio mode */
+                          if (typeof window !== "undefined" && window.speechSynthesis) {
+                            window.speechSynthesis.cancel();
+                            const utt = new SpeechSynthesisUtterance(desc);
+                            utt.rate = 1.0;
+                            window.speechSynthesis.speak(utt);
+                          }
+                        }}
+                        className={[
+                          "min-h-[44px] min-w-[44px] px-4 py-2",
+                          "rounded-lg text-sm font-medium",
+                          "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+                          isActive
+                            ? "bg-action-primary text-inverse"
+                            : "border border-border-default text-secondary hover:bg-surface-sunken",
+                        ].join(" ")}
+                      >
+                        {zone}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Visible zone caption */}
+                {activeZone && zoneDescriptions[activeZone as keyof typeof zoneDescriptions] && (
+                  <p
+                    className="text-sm text-secondary bg-surface-sunken rounded-lg p-3"
+                    role="status"
+                    /* a11y: role="status" ensures screen readers pick up zone description changes */
+                  >
+                    {zoneDescriptions[activeZone as keyof typeof zoneDescriptions]}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -589,6 +735,20 @@ export default function ChartWrapper({
       >
         {activeMode === "text" && renderTextMode()}
       </div>
+
+      {/* ─── Chart narration — always visible in all modes ─── */}
+      <figure className="m-0">
+        <figcaption className="text-sm text-secondary bg-surface-sunken rounded-lg p-4 leading-relaxed">
+          {narration}
+        </figcaption>
+      </figure>
+
+      {/* ─── AI analysis card from fixtures ─── */}
+      {chartAIResponse && (
+        <div className="mt-4">
+          <AIResponse response={chartAIResponse} />
+        </div>
+      )}
 
       {/* ─── Data table (always available) ─── */}
       <details className="rounded-lg border border-border-default">
