@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { mockPortfolio } from "@/data/mockPortfolio";
 import type { Holding } from "@/data/mockPortfolio";
+import { AIResponse } from "@/components/copilot/AIResponse";
 import {
   formatCurrency,
   formatSignedCurrency,
@@ -853,7 +854,8 @@ export default function DashboardPage() {
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
-          Proactive Copilot Card
+          Proactive Copilot Card — uses the AIResponse component with
+          three mandatory trust signals per § 2.8
           ════════════════════════════════════════════════════════════════════ */}
       <section aria-labelledby="copilot-insight-heading">
         <h2
@@ -863,79 +865,21 @@ export default function DashboardPage() {
           AI Copilot Insight
         </h2>
 
-        <div className="rounded-xl border border-border-default bg-surface-raised p-5">
-          {/* a11y: AI provenance badge — trust signal 1 */}
-          <div className="flex items-center gap-3 mb-3">
-            <span className="inline-flex items-center rounded-full bg-action-primary/10 px-2.5 py-0.5 text-xs font-semibold text-action-primary">
-              AI
-            </span>
-
-            {/* a11y: Confidence indicator — trust signal 2, icon + text + color per A3.3 */}
-            <span
-              className={`inline-flex items-center gap-1 text-xs font-medium ${
-                portfolio.copilotInsight.confidence === "high"
-                  ? "text-ai-confidence-high"
-                  : portfolio.copilotInsight.confidence === "moderate"
-                    ? "text-ai-confidence-medium"
-                    : "text-ai-confidence-low"
-              }`}
-            >
-              {portfolio.copilotInsight.confidence === "high" && (
-                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor">
-                  <circle cx="7" cy="7" r="6" />
-                </svg>
-              )}
-              {portfolio.copilotInsight.confidence === "moderate" && (
-                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor">
-                  <circle cx="7" cy="7" r="6" fillOpacity="0.6" />
-                </svg>
-              )}
-              {portfolio.copilotInsight.confidence === "low" && (
-                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor">
-                  <circle cx="7" cy="7" r="6" fillOpacity="0.3" />
-                </svg>
-              )}
-              Confidence:{" "}
-              {portfolio.copilotInsight.confidence.charAt(0).toUpperCase() +
-                portfolio.copilotInsight.confidence.slice(1)}
-            </span>
-          </div>
-
-          <h3 className="text-base font-semibold text-primary mb-2">
-            {portfolio.copilotInsight.title}
-          </h3>
-
-          <p className="text-sm text-secondary mb-4">
-            {portfolio.copilotInsight.body}
-          </p>
-
-          {/* a11y: Sources list — trust signal 3 */}
-          <div className="border-t border-border-default pt-3">
-            <p className="text-xs text-muted font-medium mb-1">Sources</p>
-            <ul className="space-y-1">
-              {portfolio.copilotInsight.sources.map((source, i) => (
-                <li key={i} className="text-xs text-secondary">
-                  {source.title}{" "}
-                  <span className="text-muted">
-                    &mdash; {source.publisher}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Low-confidence CTA per A3.4 */}
-          {portfolio.copilotInsight.confidence === "low" && (
-            <div className="mt-3">
-              <a
-                href="/research"
-                className="inline-flex items-center text-sm font-medium text-action-primary hover:text-action-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-              >
-                Verify in Research {"\u2192"}
-              </a>
-            </div>
-          )}
-        </div>
+        <AIResponse
+          response={{
+            id: "dashboard-proactive",
+            content: portfolio.copilotInsight.body,
+            confidence: portfolio.copilotInsight.confidence,
+            sources: portfolio.copilotInsight.sources.map((s, i) => ({
+              id: `src-${i}`,
+              title: s.title,
+              publisher: s.publisher,
+              lastUpdated: s.timestamp,
+            })),
+            type: "proactive",
+            triggerPage: "dashboard",
+          }}
+        />
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════
