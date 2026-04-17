@@ -1,85 +1,123 @@
 "use client";
 
-import { useState, useRef, useId } from "react";
-import { glossary } from "@/data/glossary";
+import React, { useState, useRef, useEffect, useId } from "react";
+import { findGlossaryEntry } from "@/data/glossary";
 
 interface GlossaryTermProps {
-  term: string;
-  children?: React.ReactNode;
+  /** The glossary term name, e.g. "ETF", "Cost basis" */
+  termKey: string;
+  children: React.ReactNode;
 }
 
 /**
- * Inline glossary tooltip per § 2.2.
+ * GlossaryTerm — renders an inline button that reveals a financial term definition.
  *
- * - Trigger is <button type="button"> with dotted underline — NEVER <span> with tabindex
- * - HTML title attribute FORBIDDEN
- * - Popover uses role="tooltip" via aria-describedby
- * - Escape closes, focus stays on trigger
- * - On focus, VoiceOver announces the full definition as part of the button description
- * - Definition from glossary.ts — used VERBATIM, never AI-paraphrased
+ * Accessibility contract:
+ * - Always a <button type="button"> (never <span tabindex>)
+ * - aria-describedby ALWAYS points to the sr-only definition, even when tooltip is closed
+ * - Escape key closes the visual tooltip
+ * - Definition comes from glossary.ts verbatim (CLAUDE.md A3.5)
+ * - Minimum 44px height touch target
+ * - Visible focus indicator: 3px solid #2563EB, 2px offset
  */
-export function GlossaryTerm({ term, children }: GlossaryTermProps) {
+export default function GlossaryTerm({ termKey, children }: GlossaryTermProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const tooltipId = useId();
-  const descriptionId = useId();
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const uniqueId = useId();
 
-  const entry = glossary.find(
-    (g) => g.term.toLowerCase() === term.toLowerCase()
-  );
-  const definition = entry?.definition ?? `Definition not found for "${term}".`;
+  const entry = findGlossaryEntry(termKey);
+  const definitionId = `glossary-def-${uniqueId}`;
+  const tooltipId = `glossary-tooltip-${uniqueId}`;
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Escape" && isOpen) {
-      e.preventDefault();
-      setIsOpen(false);
-      /* a11y: Focus stays on trigger after closing per § 2.2 */
-      buttonRef.current?.focus();
+  if (!entry) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`[GlossaryTerm] No glossary entry found for key: "${termKey}"`);
     }
+    return <span>{children}</span>;
   }
 
+  /* Close tooltip on Escape */
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
+  /* Close tooltip on outside click */
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        tooltipRef.current &&
+        !tooltipRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
   return (
-    <span className="relative inline-block" onKeyDown={handleKeyDown}>
+    <span className="relative inline-block">
+      {/*
+        The sr-only definition is ALWAYS in the DOM so aria-describedby
+        works regardless of tooltip visibility.
+      */}
+      <span id={definitionId} className="sr-only">
+        {/* a11y: persistent sr-only definition ensures screen readers always have access to the term meaning */}
+        {entry.definition}
+      </span>
+
       <button
         ref={buttonRef}
         type="button"
-        /* a11y: aria-describedby ALWAYS points to the hidden definition so VoiceOver
-           reads the full definition on focus, even when the tooltip is visually closed.
-           This satisfies § 2.2: "On focus, VoiceOver announces the full definition
-           as part of the button description." */
-        aria-describedby={descriptionId}
-        onMouseEnter={() => setIsOpen(true)}
-        onMouseLeave={() => setIsOpen(false)}
-        onFocus={() => setIsOpen(true)}
-        onBlur={() => setIsOpen(false)}
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="text-inherit font-inherit underline decoration-dotted decoration-[1.5px] underline-offset-2 decoration-feedback-warning cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring rounded min-h-[44px] inline-flex items-center"
+        /* a11y: aria-describedby always references the sr-only definition so screen readers announce it on focus */
+        aria-describedby={definitionId}
+        /* a11y: aria-expanded communicates whether the visual tooltip is currently shown */
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+        className={[
+          "inline-flex items-center min-h-[44px]",
+          "border-b-2 border-dotted border-action-primary",
+          "text-action-primary font-medium cursor-pointer",
+          "bg-transparent px-0",
+          "hover:border-action-primary-hover hover:text-action-primary-hover",
+          "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+        ].join(" ")}
       >
-        {children ?? term}
+        {children}
       </button>
 
-      {/* a11y: Hidden description always in the DOM so VoiceOver reads it on focus.
-          This is the sr-only version that's always available. */}
-      <span id={descriptionId} className="sr-only">
-        {term}: {definition}
-      </span>
-
-      {/* Visual tooltip — only shown on hover/focus/click */}
       {isOpen && (
-        <span
+        <div
+          ref={tooltipRef}
           id={tooltipId}
-          /* a11y: role="tooltip" for the visual popover */
+          /* a11y: role="tooltip" identifies this as supplementary description content */
           role="tooltip"
-          /* a11y: aria-hidden because the sr-only description above already provides
-             the content to screen readers. This prevents double-announcement. */
-          aria-hidden="true"
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 rounded-lg bg-surface-raised border border-border-default shadow-md text-sm text-primary"
+          className={[
+            "absolute z-50 left-0 top-full mt-2",
+            "w-72 p-4 rounded-lg shadow-lg",
+            "bg-surface-raised border border-border-default",
+            "text-sm text-primary leading-relaxed",
+          ].join(" ")}
         >
-          <strong className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1">
-            {term}
-          </strong>
-          {definition}
-        </span>
+          <p className="font-semibold mb-1">{entry.term}</p>
+          <p>{entry.definition}</p>
+        </div>
       )}
     </span>
   );

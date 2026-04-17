@@ -1,20 +1,32 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
-/* a11y: Using system fonts as stand-in for GT America (sans) and Tiempos Text (serif).
-   IBM Plex Mono for tabular financial data — ensures column alignment and signals precision. */
-const mono = IBM_Plex_Mono({
+/* § 11.2 Typography — Inter for UI, JetBrains Mono for financial numbers,
+   Source Serif 4 for long-form reading (copilot responses, research explainers) */
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
   variable: "--font-mono",
   display: "swap",
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
+  weight: ["400", "600"],
 });
 
 export const metadata: Metadata = {
   title: "Accrue — Accessible Investment Platform",
   description:
-    "An accessible mock investment platform designed for blind and low-vision users and novice retail investors.",
+    "An accessibility-first mock investment platform for blind and low-vision users and novice retail investors. HCI thesis prototype.",
 };
 
 export default function RootLayout({
@@ -23,8 +35,33 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={mono.variable}>
-      <body className="bg-surface-base text-primary antialiased">
+    <html
+      lang="en"
+      dir="ltr"
+      className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}
+    >
+      <body className="min-h-screen bg-surface-canvas text-primary antialiased">
+        {/* a11y: Global live regions for screen reader announcements.
+            Mounted once at root, used by announce() utility throughout the app. */}
+        <div
+          id="announcer-polite"
+          /* a11y: role="status" + aria-live="polite" for non-urgent updates
+             (tab changes, sort changes, range selections, timer milestones) */
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        />
+        <div
+          id="announcer-assertive"
+          /* a11y: role="alert" + aria-live="assertive" for critical updates
+             (trade confirmations, errors, login failures) */
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          className="sr-only"
+        />
+
         {children}
       </body>
     </html>

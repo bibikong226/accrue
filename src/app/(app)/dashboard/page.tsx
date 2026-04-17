@@ -1,851 +1,730 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { mockPortfolio } from "@/data/mockPortfolio";
-import type { Holding } from "@/data/mockPortfolio";
-import { AIResponse } from "@/components/copilot/AIResponse";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  portfolioSummary,
+  holdings,
+  type Holding,
+} from "@/data/mockPortfolio";
 import {
   formatCurrency,
   formatSignedCurrency,
   formatSignedPercent,
   formatPercent,
   formatShares,
+  formatDate,
+  getGainLossDisplay,
 } from "@/lib/format";
+import { announce } from "@/lib/a11y/useAnnouncer";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+/* ─── Constants derived from mock data ─── */
+const todayChange = holdings.reduce(
+  (sum, h) => sum + (h.currentPrice - h.previousClose) * h.shares,
+  0
+);
+const todayChangePercent =
+  (todayChange / (portfolioSummary.totalValue - todayChange)) * 100;
+const todayDisplay = getGainLossDisplay(todayChange, todayChangePercent);
 
-type SortKey =
-  | "symbol"
-  | "shares"
-  | "avgCost"
-  | "currentPrice"
-  | "marketValue"
-  | "gainLossDollars"
-  | "gainLossPercent";
+/* TWR and MWR mock values derived from portfolio summary */
+const twrPercent = portfolioSummary.totalGainLossPercent;
+const mwrPercent = portfolioSummary.totalGainLossPercent - 0.8; /* MWR slightly differs from TWR */
 
-type SortDirection = "ascending" | "descending";
-
-const NEWS_TABS = ["Holdings", "Watchlist", "Market", "Education"] as const;
-type NewsTabLabel = (typeof NEWS_TABS)[number];
-
-const NEWS_TAB_CATEGORY_MAP: Record<NewsTabLabel, string> = {
-  Holdings: "holdings",
-  Watchlist: "watchlist",
-  Market: "market",
-  Education: "education",
+/* Goal progress */
+const goalProgress = Math.min(
+  100,
+  Math.round((portfolioSummary.totalGainLossPercent / portfolioSummary.annualGoal) * 100)
+);
+const goalStatus: "on-track" | "behind" | "needs-attention" =
+  goalProgress >= 90 ? "on-track" : goalProgress >= 60 ? "behind" : "needs-attention";
+const goalStatusLabels = {
+  "on-track": "On track",
+  behind: "Behind",
+  "needs-attention": "Needs attention",
+};
+const goalStatusColors = {
+  "on-track": "text-gain",
+  behind: "text-feedback-warning",
+  "needs-attention": "text-loss",
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+/* Sector allocation computed from holdings */
+const sectorMap = holdings.reduce<Record<string, number>>((acc, h) => {
+  acc[h.sector] = (acc[h.sector] || 0) + h.marketValue;
+  return acc;
+}, {});
+const sectorAllocation = Object.entries(sectorMap)
+  .map(([sector, value]) => ({
+    sector,
+    value,
+    percent: (value / portfolioSummary.totalValue) * 100,
+  }))
+  .sort((a, b) => b.value - a.value);
 
-/** Determine the direction arrow character and its aria-label. */
-function getDirectionIndicator(value: number): {
-  arrow: string;
-  ariaLabel: string;
-} {
-  if (value > 0) return { arrow: "\u2191", ariaLabel: "up" };
-  if (value < 0) return { arrow: "\u2193", ariaLabel: "down" };
-  return { arrow: "", ariaLabel: "unchanged" };
+/* Diversification check */
+const maxSectorPercent = Math.max(...sectorAllocation.map((s) => s.percent));
+const isDiversified = maxSectorPercent < 40;
+
+/* News feed mock data */
+const newsTabs = ["Holdings", "Watchlist", "Market", "Education"] as const;
+type NewsTab = (typeof newsTabs)[number];
+
+interface NewsItem {
+  id: string;
+  title: string;
+  source: string;
+  date: string;
+  aiSummary: string;
+  tab: NewsTab;
 }
 
-/** Determine color class for gain/loss values. Color is supplementary per A1.6. */
-function gainLossColorClass(value: number): string {
-  if (value > 0) return "text-gain";
-  if (value < 0) return "text-loss";
-  return "text-primary";
-}
+const newsItems: NewsItem[] = [
+  {
+    id: "n1",
+    title: "Apple Reports Strong Q2 Earnings, Revenue Up 8%",
+    source: "Reuters",
+    date: "2026-04-15",
+    aiSummary:
+      "Apple exceeded analyst expectations with $94.8B revenue. Services segment grew 14% year-over-year, now representing 22% of total revenue.",
+    tab: "Holdings",
+  },
+  {
+    id: "n2",
+    title: "Vanguard Reduces Expense Ratios on 12 ETFs",
+    source: "Morningstar",
+    date: "2026-04-14",
+    aiSummary:
+      "Vanguard cut fees on several funds including VTI (now 0.03%) and VXUS (now 0.05%). This benefits long-term holders by reducing the drag on returns over time.",
+    tab: "Holdings",
+  },
+  {
+    id: "n3",
+    title: "Fed Signals Potential Rate Hold Through Summer",
+    source: "Bloomberg",
+    date: "2026-04-15",
+    aiSummary:
+      "The Federal Reserve indicated rates will likely remain at current levels through Q3 2026. Bond prices may stabilize, relevant for your BND holding.",
+    tab: "Market",
+  },
+  {
+    id: "n4",
+    title: "Understanding Dollar-Cost Averaging",
+    source: "Accrue Learn",
+    date: "2026-04-13",
+    aiSummary:
+      "Dollar-cost averaging means investing a fixed amount at regular intervals regardless of market conditions. Research shows this approach reduces the risk of investing a large amount at a market peak.",
+    tab: "Education",
+  },
+  {
+    id: "n5",
+    title: "Top Dividend ETFs for 2026",
+    source: "Seeking Alpha",
+    date: "2026-04-12",
+    aiSummary:
+      "SCHD remains a top pick among dividend ETFs. Its focus on quality dividend-paying U.S. companies has historically provided competitive total returns with lower volatility.",
+    tab: "Watchlist",
+  },
+];
 
-/** Assess diversification level based on sector concentration. */
-function assessDiversification(holdings: Holding[]): {
-  level: "Well Diversified" | "Moderate" | "Low";
-  description: string;
-} {
-  const maxWeight = Math.max(...holdings.map((h) => h.portfolioWeight));
-  const uniqueSectors = new Set(holdings.map((h) => h.sector)).size;
+/* ─── Sortable column type ─── */
+type SortKey = "symbol" | "marketValue" | "gainLossDollar" | "totalReturnPercent";
+type SortDir = "asc" | "desc";
 
-  if (maxWeight > 30) {
-    return {
-      level: "Low",
-      description: `Your largest position is ${maxWeight.toFixed(1)}% of your portfolio, which exceeds the 30% single-position threshold. Consider rebalancing to reduce concentration risk.`,
-    };
-  }
-  if (maxWeight >= 10) {
-    return {
-      level: "Moderate",
-      description: `Your largest position is ${maxWeight.toFixed(1)}% of your portfolio. Diversification is reasonable but could be improved.`,
-    };
-  }
-  if (uniqueSectors >= 5) {
-    return {
-      level: "Well Diversified",
-      description: `No single position exceeds 10% and you hold ${uniqueSectors} sectors. Your portfolio has strong diversification.`,
-    };
-  }
-  return {
-    level: "Moderate",
-    description: `Your positions are well-sized but spread across only ${uniqueSectors} sectors. Adding more sectors could improve diversification.`,
-  };
-}
+/* ─── What Changed card text ─── */
+const whatChangedText = `Your portfolio ${todayDisplay.signal === "up" ? "gained" : todayDisplay.signal === "down" ? "lost" : "is unchanged"} ${formatSignedCurrency(todayChange)} today. AAPL led with a ${formatSignedCurrency((holdings.find((h) => h.symbol === "AAPL")?.currentPrice ?? 0) - (holdings.find((h) => h.symbol === "AAPL")?.previousClose ?? 0))} per-share move. Your overall return of ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} is ${portfolioSummary.totalGainLossPercent >= portfolioSummary.annualGoal ? "ahead of" : "trailing"} your ${portfolioSummary.goalLabel} goal.`;
 
-// ─── Component ───────────────────────────────────────────────────────────────
+const followUpChips = [
+  "Why did AAPL move?",
+  "Am I on track for my goal?",
+  "Should I rebalance?",
+  "Explain my bond position",
+];
 
 export default function DashboardPage() {
-  // ── Page title ──
-  useEffect(() => {
-    document.title = "Dashboard \u2014 Accrue";
-  }, []);
-
-  // ── "What Changed" dismissal state ──
-  const [whatChangedVisible, setWhatChangedVisible] = useState(true);
-
-  // ── Holdings table sort state ──
+  const [whatChangedDismissed, setWhatChangedDismissed] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("marketValue");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("descending");
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const sortAnnouncerRef = useRef<HTMLDivElement>(null);
-
-  // ── News tabs state ──
-  const [activeNewsTab, setActiveNewsTab] = useState<NewsTabLabel>("Holdings");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [activeNewsTab, setActiveNewsTab] = useState<NewsTab>("Holdings");
   const newsPanelRef = useRef<HTMLDivElement>(null);
 
-  // ── Tooltip state for money-weighted return ──
-  const [mwrTooltipOpen, setMwrTooltipOpen] = useState(false);
-  const mwrButtonRef = useRef<HTMLButtonElement>(null);
+  const sortedHoldings = [...holdings].sort((a, b) => {
+    const aVal = a[sortKey];
+    const bVal = b[sortKey];
+    if (typeof aVal === "string" && typeof bVal === "string") {
+      return sortDir === "asc"
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal);
+    }
+    return sortDir === "asc"
+      ? (aVal as number) - (bVal as number)
+      : (bVal as number) - (aVal as number);
+  });
 
-  // ── Derived data ──
-  const portfolio = mockPortfolio;
-  const todayIndicator = getDirectionIndicator(portfolio.todayChangeDollars);
-  const diversification = assessDiversification(portfolio.holdings);
-
-  // ── Sorted holdings ──
-  const sortedHoldings = useMemo(() => {
-    const sorted = [...portfolio.holdings].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
-      if (typeof aVal === "string" && typeof bVal === "string") {
-        return sortDirection === "ascending"
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-      return sortDirection === "ascending"
-        ? (aVal as number) - (bVal as number)
-        : (bVal as number) - (aVal as number);
-    });
-    return sorted;
-  }, [portfolio.holdings, sortKey, sortDirection]);
-
-  // ── Filtered news ──
-  const filteredNews = useMemo(() => {
-    const category = NEWS_TAB_CATEGORY_MAP[activeNewsTab];
-    return portfolio.news.filter((item) => item.category === category);
-  }, [portfolio.news, activeNewsTab]);
-
-  // ── Sort handler ──
-  const handleSort = useCallback(
-    (key: SortKey) => {
-      let newDirection: SortDirection = "ascending";
-      if (sortKey === key) {
-        newDirection =
-          sortDirection === "ascending" ? "descending" : "ascending";
-      } else {
-        // Default: descending for numeric columns, ascending for symbol
-        newDirection = key === "symbol" ? "ascending" : "descending";
-      }
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
       setSortKey(key);
-      setSortDirection(newDirection);
+      setSortDir("desc");
+    }
+    announce(
+      `Holdings sorted by ${key} ${sortDir === "asc" ? "descending" : "ascending"}`,
+      "polite"
+    );
+  };
 
-      // a11y: Announce sort change to screen readers via live region
-      const label = SORT_KEY_LABELS[key];
-      if (sortAnnouncerRef.current) {
-        sortAnnouncerRef.current.textContent = `Sorted by ${label}, ${newDirection}.`;
-      }
-    },
-    [sortKey, sortDirection]
-  );
-
-  // ── Row expand/collapse ──
-  const toggleRowExpand = useCallback((symbol: string) => {
-    setExpandedRow((prev) => (prev === symbol ? null : symbol));
-  }, []);
-
-  // ── News tab activation (manual activation per spec) ──
-  const handleTabKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-      let newIndex = index;
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        newIndex = (index + 1) % NEWS_TABS.length;
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        newIndex = (index - 1 + NEWS_TABS.length) % NEWS_TABS.length;
-      } else if (e.key === "Home") {
-        e.preventDefault();
-        newIndex = 0;
-      } else if (e.key === "End") {
-        e.preventDefault();
-        newIndex = NEWS_TABS.length - 1;
+  const toggleRow = (symbol: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(symbol)) {
+        next.delete(symbol);
+        announce(`${symbol} details collapsed`, "polite");
       } else {
-        return; // Don't handle other keys
+        next.add(symbol);
+        announce(`${symbol} details expanded`, "polite");
       }
-      // Move focus to the new tab but don't activate (manual activation)
-      const tablist = (e.target as HTMLElement).closest('[role="tablist"]');
-      const tabs = tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-      tabs?.[newIndex]?.focus();
-    },
-    []
-  );
+      return next;
+    });
+  };
 
-  const activateTab = useCallback((tab: NewsTabLabel) => {
+  const handleNewsTabChange = (tab: NewsTab) => {
     setActiveNewsTab(tab);
-    // a11y: After tab activation, move focus into the panel
-    requestAnimationFrame(() => {
-      newsPanelRef.current?.focus();
-    });
-  }, []);
+    announce(`Showing ${tab} news`, "polite");
+    if (newsPanelRef.current) {
+      newsPanelRef.current.focus();
+    }
+  };
 
-  // ── Donut chart CSS ──
-  const donutGradient = useMemo(() => {
-    let cumulative = 0;
-    const stops = portfolio.sectorAllocations.map((s) => {
-      const start = cumulative;
-      cumulative += s.percent;
-      return `${s.color} ${start}% ${cumulative}%`;
-    });
-    return `conic-gradient(${stops.join(", ")})`;
-  }, [portfolio.sectorAllocations]);
-
-  // ── Largest position weight for diversification ──
-  const largestPositionWeight = Math.max(
-    ...portfolio.holdings.map((h) => h.portfolioWeight)
+  const SortButton = ({
+    label,
+    columnKey,
+  }: {
+    label: string;
+    columnKey: SortKey;
+  }) => (
+    <button
+      onClick={() => handleSort(columnKey)}
+      className="inline-flex items-center gap-1 min-h-[44px] min-w-[44px] font-medium text-left focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+      aria-sort={
+        sortKey === columnKey
+          ? sortDir === "asc"
+            ? "ascending"
+            : "descending"
+          : undefined
+      }
+    >
+      {label}
+      {sortKey === columnKey && (
+        <span aria-hidden="true">{sortDir === "asc" ? " \u25B2" : " \u25BC"}</span>
+      )}
+    </button>
   );
 
   return (
-    <div className="space-y-8">
-      {/* ── Page heading ── */}
-      <h1 className="text-3xl font-semibold text-primary">
+    <>
+      <h1 className="text-2xl font-bold text-primary mb-6">
         Portfolio Dashboard
       </h1>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          § 2.7 — "What Changed Since Last Login" Card
-          ════════════════════════════════════════════════════════════════════ */}
-      {whatChangedVisible && (
-        <section
-          aria-label="Changes since last login"
-          className="relative rounded-xl border border-border-default bg-surface-raised p-5"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-primary mb-1">
-                What changed since yesterday
-              </h2>
-              <p className="text-sm text-secondary">
-                Since yesterday:{" "}
-                <span className={gainLossColorClass(portfolio.todayChangeDollars)}>
-                  <span aria-label={portfolio.todayChangeDollars >= 0 ? "up" : "down"} role="img">
-                    {portfolio.todayChangeDollars >= 0 ? "\u2191" : "\u2193"}
-                  </span>{" "}
-                  {formatSignedCurrency(portfolio.todayChangeDollars)} (
-                  {formatSignedPercent(portfolio.todayChangePercent)})
-                </span>
-                . Biggest mover:{" "}
-                <span className={gainLossColorClass(portfolio.biggestMoverChangePercent)}>
-                  {portfolio.biggestMoverSymbol}{" "}
-                  <span aria-label={portfolio.biggestMoverChangePercent >= 0 ? "up" : "down"} role="img">
-                    {portfolio.biggestMoverChangePercent >= 0 ? "\u2191" : "\u2193"}
-                  </span>{" "}
-                  {formatSignedPercent(portfolio.biggestMoverChangePercent)}
-                </span>
-                .
-              </p>
-              {/* Follow-up chip buttons */}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="inline-flex items-center rounded-full border border-border-default bg-surface-base px-3 py-1.5 text-xs font-medium text-secondary hover:bg-surface-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring min-h-[44px]"
+      {/* ─── Section 1: What Changed ─── */}
+      {!whatChangedDismissed && (
+        <section aria-labelledby="what-changed-heading" className="mb-6">
+          <div className="bg-surface-raised border border-border-default rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2
+                  id="what-changed-heading"
+                  className="text-lg font-semibold text-primary mb-2"
                 >
-                  Why did {portfolio.biggestMoverSymbol} move?
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center rounded-full border border-border-default bg-surface-base px-3 py-1.5 text-xs font-medium text-secondary hover:bg-surface-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring min-h-[44px]"
-                >
-                  Show my portfolio breakdown
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center rounded-full border border-border-default bg-surface-base px-3 py-1.5 text-xs font-medium text-secondary hover:bg-surface-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring min-h-[44px]"
-                >
-                  Am I still on track?
-                </button>
+                  What Changed
+                </h2>
+                <p className="text-sm text-secondary">{whatChangedText}</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {followUpChips.map((chip) => (
+                    <button
+                      key={chip}
+                      className="px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-full border border-border-default text-secondary hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                      onClick={() =>
+                        announce(
+                          "Opening AI Copilot is currently mocked.",
+                          "polite"
+                        )
+                      }
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setWhatChangedVisible(false)}
-              aria-label="Dismiss changes since last login"
-              className="shrink-0 rounded-lg p-2 text-secondary hover:text-primary hover:bg-surface-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              {/* Close icon */}
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden="true"
+              <button
+                onClick={() => {
+                  setWhatChangedDismissed(true);
+                  announce("What Changed card dismissed", "polite");
+                }}
+                aria-label="Dismiss What Changed card"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
               >
-                <path
-                  d="M15 5L5 15M5 5l10 10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+            </div>
           </div>
         </section>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          § 3.1 — Hero Metrics Section
-          ════════════════════════════════════════════════════════════════════ */}
-      <section aria-label="Portfolio summary">
-        {/* a11y: <dl> so VoiceOver reads "Portfolio Value: $99,656.95" */}
-        <dl className="space-y-3">
-          {/* Total portfolio value — LARGEST typographic element */}
-          <div>
-            <dt className="text-sm font-medium text-secondary">
-              Portfolio Value
-            </dt>
-            <dd className="text-5xl font-semibold text-primary tabular-nums font-mono tracking-tight">
-              {formatCurrency(portfolio.totalValue)}
-            </dd>
-          </div>
-
-          {/* Today's change row */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <dt className="sr-only">Today&apos;s change</dt>
-            <dd
-              className={`text-lg font-medium tabular-nums ${gainLossColorClass(portfolio.todayChangeDollars)}`}
-            >
-              <span aria-label={todayIndicator.ariaLabel} role="img">
-                {todayIndicator.arrow}
-              </span>{" "}
-              {formatSignedCurrency(portfolio.todayChangeDollars)} today{" "}
-              <span aria-hidden="true">&middot;</span>{" "}
-              {formatSignedPercent(portfolio.todayChangePercent)}
-            </dd>
-          </div>
-
-          {/* Performance context — framed against goal and benchmark per A2.6 */}
-          <div className="text-xs text-muted">
-            Your goal is {formatPercent(portfolio.annualGoalReturn)} annual return.{" "}
-            {portfolio.benchmarkName} returned{" "}
-            {formatSignedPercent(portfolio.benchmarkReturn)} over the same period.
-          </div>
-
-          {/* Return pills */}
-          <div className="flex flex-wrap items-center gap-3 mt-1">
-            {/* Time-weighted return pill */}
+      {/* ─── Section 2: Hero Metrics ─── */}
+      <section aria-labelledby="hero-metrics-heading" className="mb-6">
+        <h2 id="hero-metrics-heading" className="sr-only">
+          Portfolio Summary Metrics
+        </h2>
+        <div className="bg-surface-raised border border-border-default rounded-lg p-6">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Portfolio Value */}
             <div>
-              <dt className="sr-only">All-time time-weighted return</dt>
-              <dd className="inline-flex items-center rounded-full bg-surface-overlay px-3 py-1 text-sm font-medium text-secondary">
-                All-time:{" "}
+              <dt className="text-sm font-medium text-muted">
+                Portfolio Value
+              </dt>
+              <dd className="text-3xl font-bold text-primary tabular-nums mt-1">
+                {formatCurrency(portfolioSummary.totalValue)}
+              </dd>
+            </div>
+
+            {/* Today's Change */}
+            <div>
+              <dt className="text-sm font-medium text-muted">
+                Today&apos;s Change
+              </dt>
+              <dd className="mt-1">
                 <span
-                  className={`ml-1 tabular-nums ${gainLossColorClass(portfolio.timeWeightedReturn)}`}
+                  className={`text-xl font-semibold tabular-nums ${
+                    todayDisplay.signal === "up"
+                      ? "text-gain gain-text"
+                      : todayDisplay.signal === "down"
+                        ? "text-loss loss-text"
+                        : "text-primary"
+                  }`}
                 >
-                  {formatSignedPercent(portfolio.timeWeightedReturn)}
+                  <span aria-label={todayDisplay.arrowLabel} role="img">
+                    {todayDisplay.arrow}
+                  </span>{" "}
+                  {todayDisplay.text}
                 </span>
               </dd>
             </div>
 
-            {/* Money-weighted return pill with explainer tooltip */}
-            <div className="relative">
-              <dt className="sr-only">Your money-weighted return</dt>
-              <dd className="inline-flex items-center rounded-full bg-surface-overlay px-3 py-1 text-sm font-medium text-secondary">
-                Your return:{" "}
+            {/* All-time TWR */}
+            <div>
+              <dt className="text-sm font-medium text-muted">
+                All-time Return{" "}
+                <abbr
+                  title="Time-Weighted Return: measures portfolio performance independent of cash flows"
+                  className="no-underline cursor-help"
+                >
+                  (TWR)
+                </abbr>
+              </dt>
+              <dd className="mt-1">
                 <span
-                  className={`ml-1 tabular-nums ${gainLossColorClass(portfolio.moneyWeightedReturn)}`}
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold tabular-nums ${
+                    twrPercent >= 0
+                      ? "bg-green-50 text-gain"
+                      : "bg-red-50 text-loss"
+                  }`}
                 >
-                  {formatSignedPercent(portfolio.moneyWeightedReturn)}
+                  {formatSignedPercent(twrPercent)}
                 </span>
-                <button
-                  ref={mwrButtonRef}
-                  type="button"
-                  onClick={() => setMwrTooltipOpen((prev) => !prev)}
-                  onBlur={() => setMwrTooltipOpen(false)}
-                  aria-expanded={mwrTooltipOpen}
-                  aria-label="What is your return? Explanation"
-                  className="ml-1.5 inline-flex items-center justify-center rounded-full w-5 h-5 text-xs font-bold border border-border-default text-muted hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                >
-                  ?
-                </button>
+                <span className="block text-xs text-muted mt-1">
+                  Goal: {portfolioSummary.goalLabel} |{" "}
+                  {portfolioSummary.benchmarkLabel}:{" "}
+                  {formatSignedPercent(portfolioSummary.benchmarkReturn)}
+                </span>
               </dd>
-              {mwrTooltipOpen && (
-                <div
-                  role="tooltip"
-                  className="absolute left-0 top-full mt-2 z-10 w-72 rounded-lg border border-border-default bg-surface-raised p-3 text-sm text-secondary shadow-lg"
-                >
-                  <p>
-                    <strong>Your return</strong> (money-weighted) reflects the
-                    actual return on the cash you invested, accounting for the
-                    timing and size of your deposits and withdrawals. It may
-                    differ from the all-time (time-weighted) return, which
-                    measures the portfolio&apos;s performance independent of cash
-                    flows.
-                  </p>
-                </div>
-              )}
             </div>
-          </div>
-        </dl>
+
+            {/* Your Return MWR */}
+            <div>
+              <dt className="text-sm font-medium text-muted">
+                Your Return{" "}
+                <abbr
+                  title="Money-Weighted Return: measures your personal return including timing of deposits and withdrawals"
+                  className="no-underline cursor-help"
+                >
+                  (MWR)
+                </abbr>
+              </dt>
+              <dd className="mt-1">
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold tabular-nums ${
+                    mwrPercent >= 0
+                      ? "bg-green-50 text-gain"
+                      : "bg-red-50 text-loss"
+                  }`}
+                >
+                  {formatSignedPercent(mwrPercent)}
+                </span>
+                <span className="block text-xs text-muted mt-1">
+                  Difference from TWR reflects your deposit/withdrawal timing
+                </span>
+              </dd>
+            </div>
+          </dl>
+        </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          § 3.5 — Goal Progress
-          ════════════════════════════════════════════════════════════════════ */}
-      <section aria-labelledby="goal-heading">
-        <h2 id="goal-heading" className="text-xl font-semibold text-primary mb-3">
+      {/* ─── Section 3: Goal Progress ─── */}
+      <section aria-labelledby="goal-progress-heading" className="mb-6">
+        <h2
+          id="goal-progress-heading"
+          className="text-lg font-semibold text-primary mb-3"
+        >
           Goal Progress
         </h2>
-
-        {/* Status label */}
-        <p className="flex items-center gap-2 mb-1">
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-              portfolio.goal.status === "on-track"
-                ? "bg-feedback-success/10 text-feedback-success"
-                : portfolio.goal.status === "behind"
-                  ? "bg-feedback-warning/10 text-feedback-warning"
-                  : "bg-feedback-error/10 text-feedback-error"
-            }`}
-          >
-            {portfolio.goal.statusLabel}
-          </span>
-        </p>
-
-        {/* Confidence sentence */}
-        <p className="text-sm text-secondary mb-3">
-          At {formatPercent(portfolio.goal.confidencePercent)} confidence, you&apos;ll
-          reach {formatCurrency(portfolio.goal.targetAmount)} by{" "}
-          {portfolio.goal.targetDateDisplay}.
-        </p>
-
-        {/* Progress bar — visual + text */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-muted mb-1">
-            <span>
-              {formatCurrency(portfolio.goal.currentAmount)} of{" "}
-              {formatCurrency(portfolio.goal.targetAmount)}
+        <div className="bg-surface-raised border border-border-default rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <span
+              className={`text-sm font-bold ${goalStatusColors[goalStatus]}`}
+            >
+              {goalStatusLabels[goalStatus]}
             </span>
-            <span>{formatPercent(portfolio.goal.progressPercent)}</span>
+            <span className="text-sm text-secondary">
+              {goalStatus === "on-track"
+                ? `You are exceeding your ${portfolioSummary.goalLabel} target with ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} return.`
+                : goalStatus === "behind"
+                  ? `Your return of ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} is slightly behind your ${portfolioSummary.goalLabel} target.`
+                  : `Your return of ${formatSignedPercent(portfolioSummary.totalGainLossPercent)} needs attention to meet your ${portfolioSummary.goalLabel} target.`}
+            </span>
           </div>
-          <div
-            /* a11y: progressbar role with accessible values */
-            role="progressbar"
-            aria-valuenow={portfolio.goal.progressPercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Goal progress: ${formatPercent(portfolio.goal.progressPercent)} toward ${formatCurrency(portfolio.goal.targetAmount)}`}
-            className="h-3 w-full rounded-full bg-surface-overlay overflow-hidden"
-          >
-            <div
-              className={`h-full rounded-full transition-all ${
-                portfolio.goal.status === "on-track"
-                  ? "bg-feedback-success"
-                  : portfolio.goal.status === "behind"
-                    ? "bg-feedback-warning"
-                    : "bg-feedback-error"
-              }`}
-              style={{ width: `${portfolio.goal.progressPercent}%` }}
-            />
-          </div>
-        </div>
 
-        {/* Lever cards — shown when not on track */}
-        {portfolio.goal.status !== "on-track" && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-border-default bg-surface-raised p-4">
-              <p className="text-sm font-medium text-primary">
-                Add {formatCurrency(portfolio.goal.leverMonthly)}/mo
-              </p>
-              <p className="text-xs text-feedback-success mt-1">
-                {"\u2192"} On track
-              </p>
+          {/* Progress bar */}
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-muted mb-1">
+              <span>0%</span>
+              <span>
+                Goal: {portfolioSummary.annualGoal}% annual
+              </span>
             </div>
-            <div className="rounded-lg border border-border-default bg-surface-raised p-4">
-              <p className="text-sm font-medium text-primary">
-                Extend by {portfolio.goal.leverExtendMonths} months
-              </p>
-              <p className="text-xs text-feedback-success mt-1">
-                {"\u2192"} On track
-              </p>
+            <div
+              role="progressbar"
+              aria-valuenow={portfolioSummary.totalGainLossPercent}
+              aria-valuemin={0}
+              aria-valuemax={portfolioSummary.annualGoal}
+              aria-label={`Goal progress: ${formatPercent(portfolioSummary.totalGainLossPercent)} of ${portfolioSummary.annualGoal}% target`}
+              className="w-full h-4 bg-surface-sunken rounded-full overflow-hidden"
+            >
+              <div
+                className="h-full bg-action-primary rounded-full transition-all"
+                style={{ width: `${Math.min(goalProgress, 100)}%` }}
+              />
             </div>
-            <div className="rounded-lg border border-border-default bg-surface-raised p-4">
-              <p className="text-sm font-medium text-primary">
-                One-time {formatCurrency(portfolio.goal.leverOneTime)}
-              </p>
-              <p className="text-xs text-feedback-success mt-1">
-                {"\u2192"} On track
-              </p>
-            </div>
+            <p className="text-xs text-muted mt-1">
+              {formatPercent(portfolioSummary.totalGainLossPercent)} achieved of{" "}
+              {portfolioSummary.annualGoal}% annual goal ({goalProgress}%
+              complete)
+            </p>
           </div>
-        )}
+
+          {/* Lever cards for off-track */}
+          {goalStatus !== "on-track" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="border border-border-default rounded-md p-3">
+                <h3 className="text-sm font-semibold text-primary">
+                  Increase Contributions
+                </h3>
+                <p className="text-xs text-secondary mt-1">
+                  Adding $200/month could help you reach your goal by year-end.
+                </p>
+              </div>
+              <div className="border border-border-default rounded-md p-3">
+                <h3 className="text-sm font-semibold text-primary">
+                  Review Allocation
+                </h3>
+                <p className="text-xs text-secondary mt-1">
+                  Your bond allocation may be dragging returns. Consider your
+                  risk tolerance.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          § 3.3 — Asset Allocation
-          ════════════════════════════════════════════════════════════════════ */}
-      <section aria-labelledby="allocation-heading">
+      {/* ─── Section 4: Asset Allocation ─── */}
+      <section aria-labelledby="allocation-heading" className="mb-6">
         <h2
           id="allocation-heading"
-          className="text-xl font-semibold text-primary mb-3"
+          className="text-lg font-semibold text-primary mb-3"
         >
           Asset Allocation
         </h2>
-
-        <div className="flex flex-col sm:flex-row gap-6 items-start">
-          {/* Donut chart — CSS conic-gradient for accessibility (no canvas/SVG) */}
-          <div className="relative shrink-0">
+        <div className="bg-surface-raised border border-border-default rounded-lg p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Donut placeholder (aria-hidden because the table below is the accessible version) */}
             <div
-              role="img"
-              aria-label={`Asset allocation donut chart. ${formatCurrency(portfolio.totalValue)} across ${portfolio.sectorCount} sectors. ${portfolio.sectorAllocations.map((s) => `${s.sector}: ${formatPercent(s.percent)}`).join(". ")}.`}
-              className="w-48 h-48 rounded-full"
-              style={{
-                background: donutGradient,
-                /* Force mask for donut hole */
-                WebkitMask:
-                  "radial-gradient(closest-side, transparent 65%, black 65.5%)",
-                mask: "radial-gradient(closest-side, transparent 65%, black 65.5%)",
-              }}
-            />
-            {/* Center text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-sm font-semibold text-primary tabular-nums">
-                {formatCurrency(portfolio.totalValue)}
-              </span>
-              <span className="text-xs text-muted">
-                across {portfolio.sectorCount} sectors
-              </span>
+              aria-hidden="true"
+              className="flex items-center justify-center"
+            >
+              <div className="w-48 h-48 rounded-full border-8 border-action-primary flex items-center justify-center bg-surface-sunken">
+                <span className="text-sm font-medium text-muted">
+                  {sectorAllocation.length} sectors
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Legend + Diversification indicator */}
-          <div className="flex-1 min-w-0">
-            {/* Sector legend — semantic data table for screen readers */}
-            <table className="w-full text-sm mb-4">
-              {/* a11y: caption provides accessible name describing what this table shows */}
-              <caption className="sr-only">
-                Sector allocation breakdown showing each sector, its market value, and portfolio weight percentage
+            {/* Accessible allocation table */}
+            <table className="w-full text-sm">
+              <caption className="text-left text-sm font-medium text-muted mb-2">
+                Portfolio allocation by sector, showing value and percentage of
+                total portfolio
               </caption>
               <thead>
-                <tr>
-                  <th scope="col" className="text-left text-xs text-muted font-medium pb-1">
+                <tr className="border-b border-border-default">
+                  <th
+                    scope="col"
+                    className="text-left py-2 font-semibold text-primary"
+                  >
                     Sector
                   </th>
-                  <th scope="col" className="text-right text-xs text-muted font-medium pb-1">
-                    Market Value
+                  <th
+                    scope="col"
+                    className="text-right py-2 font-semibold text-primary"
+                  >
+                    Value
                   </th>
-                  <th scope="col" className="text-right text-xs text-muted font-medium pb-1">
-                    Portfolio Weight
+                  <th
+                    scope="col"
+                    className="text-right py-2 font-semibold text-primary"
+                  >
+                    Weight
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {portfolio.sectorAllocations.map((s) => (
-                  <tr key={s.sector}>
-                    <td className="py-1 pr-3">
-                      <span className="flex items-center gap-2">
-                        <span
-                          aria-hidden="true"
-                          className="inline-block w-3 h-3 rounded-sm shrink-0"
-                          style={{ backgroundColor: s.color }}
-                        />
-                        {s.sector}
-                      </span>
-                    </td>
-                    <td className="py-1 text-right tabular-nums">
+                {sectorAllocation.map((s) => (
+                  <tr
+                    key={s.sector}
+                    className="border-b border-border-default last:border-0"
+                  >
+                    <td className="py-2 text-primary">{s.sector}</td>
+                    <td className="py-2 text-right tabular-nums text-primary">
                       {formatCurrency(s.value)}
                     </td>
-                    <td className="py-1 text-right tabular-nums">
+                    <td className="py-2 text-right tabular-nums text-primary">
                       {s.percent.toFixed(1)}%
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
 
-            {/* Diversification indicator */}
-            <div
-              className={`rounded-lg border p-3 ${
-                diversification.level === "Well Diversified"
-                  ? "border-feedback-success/30 bg-feedback-success/5"
-                  : diversification.level === "Moderate"
-                    ? "border-feedback-warning/30 bg-feedback-warning/5"
-                    : "border-feedback-error/30 bg-feedback-error/5"
-              }`}
-            >
-              <p className="text-sm font-semibold text-primary mb-1">
-                Diversification:{" "}
-                <span
-                  className={
-                    diversification.level === "Well Diversified"
-                      ? "text-feedback-success"
-                      : diversification.level === "Moderate"
-                        ? "text-feedback-warning"
-                        : "text-feedback-error"
-                  }
-                >
-                  {diversification.level}
-                </span>
-              </p>
-              <p className="text-xs text-secondary">
-                {diversification.description}
-              </p>
-            </div>
+          {/* Diversification indicator */}
+          <div className="mt-4 p-3 rounded-md bg-surface-sunken">
+            <p className="text-sm text-secondary">
+              <span
+                className={`font-semibold ${isDiversified ? "text-gain" : "text-feedback-warning"}`}
+              >
+                {isDiversified ? "Well Diversified" : "Concentration Risk"}
+              </span>
+              {" \u2014 "}
+              {isDiversified
+                ? `No single sector exceeds 40% of your portfolio. Your largest allocation is ${sectorAllocation[0].sector} at ${sectorAllocation[0].percent.toFixed(1)}%.`
+                : `${sectorAllocation[0].sector} represents ${sectorAllocation[0].percent.toFixed(1)}% of your portfolio. Consider diversifying to reduce concentration risk.`}
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          § 3.6 — Holdings Table
-          ════════════════════════════════════════════════════════════════════ */}
-      <section aria-labelledby="holdings-heading">
+      {/* ─── Section 5: Holdings Table ─── */}
+      <section aria-labelledby="holdings-heading" className="mb-6">
         <h2
           id="holdings-heading"
-          className="text-xl font-semibold text-primary mb-3"
+          className="text-lg font-semibold text-primary mb-3"
         >
           Holdings
         </h2>
-
-        {/* a11y: Live region announces sort changes */}
-        <div
-          ref={sortAnnouncerRef}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className="sr-only"
-        />
-
-        <div className="overflow-x-auto rounded-xl border border-border-default">
+        <div className="bg-surface-raised border border-border-default rounded-lg overflow-x-auto">
           <table className="w-full text-sm">
-            {/* a11y: caption provides accessible name for screen readers */}
-            <caption className="sr-only">
-              Portfolio holdings table showing each stock position with symbol, shares owned, average cost basis, current price, market value, and gain or loss in dollars and percent
+            <caption className="text-left text-sm font-medium text-muted p-4 pb-2">
+              Your investment holdings with current values, gains and losses,
+              and total returns. Click or press Enter on a row to see details.
             </caption>
-            <thead className="bg-surface-raised">
-              <tr>
-                <SortableHeader
-                  label="Symbol"
-                  sortKey="symbol"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                />
-                <SortableHeader
-                  label="Shares"
-                  sortKey="shares"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                  align="right"
-                />
-                <SortableHeader
-                  label="Average Cost"
-                  sortKey="avgCost"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                  align="right"
-                />
-                <SortableHeader
-                  label="Current Price"
-                  sortKey="currentPrice"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                  align="right"
-                />
-                <SortableHeader
-                  label="Market Value"
-                  sortKey="marketValue"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                  align="right"
-                />
-                <SortableHeader
-                  label="Gain/Loss ($)"
-                  sortKey="gainLossDollars"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                  align="right"
-                />
-                <SortableHeader
-                  label="Gain/Loss (%)"
-                  sortKey="gainLossPercent"
-                  currentSortKey={sortKey}
-                  currentDirection={sortDirection}
-                  onSort={handleSort}
-                  align="right"
-                />
+            <thead>
+              <tr className="border-b border-border-default">
+                <th scope="col" className="text-left p-3 w-8">
+                  <span className="sr-only">Expand</span>
+                </th>
+                <th scope="col" className="text-left p-3">
+                  <SortButton label="Symbol" columnKey="symbol" />
+                </th>
+                <th scope="col" className="text-right p-3">
+                  Shares
+                </th>
+                <th scope="col" className="text-right p-3">
+                  Price
+                </th>
+                <th scope="col" className="text-right p-3">
+                  <SortButton label="Market Value" columnKey="marketValue" />
+                </th>
+                <th scope="col" className="text-right p-3">
+                  <SortButton label="Gain/Loss" columnKey="gainLossDollar" />
+                </th>
+                <th scope="col" className="text-right p-3">
+                  <SortButton
+                    label="Total Return"
+                    columnKey="totalReturnPercent"
+                  />
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-default">
-              {sortedHoldings.map((holding) => {
-                const glIndicator = getDirectionIndicator(
-                  holding.gainLossDollars
+            <tbody>
+              {sortedHoldings.map((h) => {
+                const display = getGainLossDisplay(
+                  h.gainLossDollar,
+                  h.gainLossPercent
                 );
-                const isExpanded = expandedRow === holding.symbol;
+                const isExpanded = expandedRows.has(h.symbol);
                 return (
-                  <>
+                  <React.Fragment key={h.symbol}>
                     <tr
-                      key={holding.symbol}
-                      className="hover:bg-surface-overlay/50 cursor-pointer"
-                      style={{ height: "56px" }}
+                      className="border-b border-border-default hover:bg-surface-sunken cursor-pointer"
                       tabIndex={0}
                       role="row"
                       aria-expanded={isExpanded}
-                      onClick={() => toggleRowExpand(holding.symbol)}
+                      onClick={() => toggleRow(h.symbol)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          toggleRowExpand(holding.symbol);
+                          toggleRow(h.symbol);
                         }
                       }}
                     >
-                      <td className="px-4 py-3 font-medium text-primary whitespace-nowrap">
-                        <div>
-                          <span className="font-semibold">
-                            {holding.symbol}
-                          </span>
-                          <span className="block text-xs text-muted font-normal">
-                            {holding.name}
-                          </span>
+                      <td className="p-3">
+                        <span aria-hidden="true">
+                          {isExpanded ? "\u25BC" : "\u25B6"}
+                        </span>
+                        <span className="sr-only">
+                          {isExpanded
+                            ? `Collapse ${h.symbol} details`
+                            : `Expand ${h.symbol} details`}
+                        </span>
+                      </td>
+                      <td className="p-3 font-medium text-primary">
+                        <div>{h.symbol}</div>
+                        <div className="text-xs text-muted font-normal">
+                          {h.name}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-secondary">
-                        {formatShares(holding.shares)}
+                      <td className="p-3 text-right tabular-nums">
+                        {formatShares(h.shares)}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-secondary">
-                        {formatCurrency(holding.avgCost)}
+                      <td className="p-3 text-right tabular-nums">
+                        {formatCurrency(h.currentPrice)}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-secondary">
-                        {formatCurrency(holding.currentPrice)}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium text-primary">
-                        {formatCurrency(holding.marketValue)}
+                      <td className="p-3 text-right tabular-nums font-medium">
+                        {formatCurrency(h.marketValue)}
                       </td>
                       <td
-                        className={`px-4 py-3 text-right tabular-nums font-medium ${gainLossColorClass(holding.gainLossDollars)}`}
+                        className={`p-3 text-right tabular-nums ${
+                          display.signal === "up"
+                            ? "text-gain gain-text"
+                            : display.signal === "down"
+                              ? "text-loss loss-text"
+                              : "text-primary"
+                        }`}
                       >
-                        <span aria-label={glIndicator.ariaLabel} role="img">
-                          {glIndicator.arrow}
+                        <span aria-label={display.arrowLabel} role="img">
+                          {display.arrow}
                         </span>{" "}
-                        {formatSignedCurrency(holding.gainLossDollars)}
+                        {formatSignedCurrency(h.gainLossDollar)}
                       </td>
                       <td
-                        className={`px-4 py-3 text-right tabular-nums font-medium ${gainLossColorClass(holding.gainLossPercent)}`}
+                        className={`p-3 text-right tabular-nums ${
+                          h.totalReturnPercent >= 0
+                            ? "text-gain gain-text"
+                            : "text-loss loss-text"
+                        }`}
                       >
-                        <span aria-label={holding.gainLossPercent >= 0 ? "up" : "down"} role="img">
-                          {holding.gainLossPercent >= 0 ? "\u2191" : "\u2193"}
-                        </span>{" "}
-                        {formatSignedPercent(holding.gainLossPercent)}
+                        {formatSignedPercent(h.totalReturnPercent)}
                       </td>
                     </tr>
-                    {/* Expanded detail row */}
                     {isExpanded && (
-                      <tr
-                        key={`${holding.symbol}-detail`}
-                        className="bg-surface-sunken"
-                      >
-                        <td colSpan={7} className="px-6 py-4">
+                      <tr className="bg-surface-sunken">
+                        <td colSpan={7} className="p-4">
                           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                             <div>
-                              <dt className="text-xs text-muted">
-                                Total Cost Basis
+                              <dt className="text-muted font-medium">
+                                Cost Basis
                               </dt>
-                              <dd className="font-medium text-primary tabular-nums">
-                                {formatCurrency(
-                                  holding.shares * holding.avgCost
-                                )}
+                              <dd className="tabular-nums text-primary">
+                                {formatCurrency(h.costBasis)}
                               </dd>
                             </div>
                             <div>
-                              <dt className="text-xs text-muted">
-                                Market Value
+                              <dt className="text-muted font-medium">
+                                Avg Cost
                               </dt>
-                              <dd className="font-medium text-primary tabular-nums">
-                                {formatCurrency(holding.marketValue)}
+                              <dd className="tabular-nums text-primary">
+                                {formatCurrency(h.averageCost)}
                               </dd>
                             </div>
                             <div>
-                              <dt className="text-xs text-muted">
-                                Total Return ($)
-                              </dt>
-                              <dd
-                                className={`font-medium tabular-nums ${gainLossColorClass(holding.gainLossDollars)}`}
-                              >
-                                <span aria-label={holding.gainLossDollars >= 0 ? "up" : "down"} role="img">
-                                  {holding.gainLossDollars >= 0 ? "\u2191" : "\u2193"}
-                                </span>{" "}
-                                {formatSignedCurrency(holding.gainLossDollars)}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="text-xs text-muted">
-                                Total Return (%)
-                              </dt>
-                              <dd
-                                className={`font-medium tabular-nums ${gainLossColorClass(holding.gainLossPercent)}`}
-                              >
-                                <span aria-label={holding.gainLossPercent >= 0 ? "up" : "down"} role="img">
-                                  {holding.gainLossPercent >= 0 ? "\u2191" : "\u2193"}
-                                </span>{" "}
-                                {formatSignedPercent(holding.gainLossPercent)}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="text-xs text-muted">
-                                Today&apos;s Change
-                              </dt>
-                              <dd
-                                className={`font-medium tabular-nums ${gainLossColorClass(holding.todayChangeDollars)}`}
-                              >
-                                <span aria-label={holding.todayChangeDollars >= 0 ? "up" : "down"} role="img">
-                                  {holding.todayChangeDollars >= 0 ? "\u2191" : "\u2193"}
-                                </span>{" "}
-                                {formatSignedCurrency(
-                                  holding.todayChangeDollars
-                                )}{" "}
-                                (
-                                {formatSignedPercent(
-                                  holding.todayChangePercent
-                                )}
-                                )
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="text-xs text-muted">
-                                Portfolio Weight
-                              </dt>
-                              <dd className="font-medium text-primary tabular-nums">
-                                {holding.portfolioWeight.toFixed(2)}%
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="text-xs text-muted">
+                              <dt className="text-muted font-medium">
                                 Sector
                               </dt>
-                              <dd className="font-medium text-primary">
-                                {holding.sector}
+                              <dd className="text-primary">{h.sector}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted font-medium">
+                                Analyst Target
+                              </dt>
+                              <dd className="tabular-nums text-primary">
+                                {h.analystTargetPrice
+                                  ? formatCurrency(h.analystTargetPrice)
+                                  : "N/A"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted font-medium">
+                                P/E Ratio
+                              </dt>
+                              <dd className="tabular-nums text-primary">
+                                {h.peRatio ?? "N/A"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted font-medium">
+                                Dividend Yield
+                              </dt>
+                              <dd className="tabular-nums text-primary">
+                                {h.dividendYield
+                                  ? `${h.dividendYield.toFixed(2)}%`
+                                  : "N/A"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted font-medium">
+                                Prev Close
+                              </dt>
+                              <dd className="tabular-nums text-primary">
+                                {formatCurrency(h.previousClose)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted font-medium">
+                                Goal Context
+                              </dt>
+                              <dd className="text-primary text-xs">
+                                {h.totalReturnPercent >=
+                                portfolioSummary.annualGoal
+                                  ? `Beating your ${portfolioSummary.goalLabel}`
+                                  : `Below your ${portfolioSummary.goalLabel}`}
                               </dd>
                             </div>
                           </dl>
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -853,193 +732,149 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          Proactive Copilot Card — uses the AIResponse component with
-          three mandatory trust signals per § 2.8
-          ════════════════════════════════════════════════════════════════════ */}
-      <section aria-labelledby="copilot-insight-heading">
+      {/* ─── Section 6: AI Copilot Insight ─── */}
+      <section aria-labelledby="ai-insight-heading" className="mb-6">
         <h2
-          id="copilot-insight-heading"
-          className="text-xl font-semibold text-primary mb-3"
+          id="ai-insight-heading"
+          className="text-lg font-semibold text-primary mb-3"
         >
           AI Copilot Insight
         </h2>
-
-        <AIResponse
-          response={{
-            id: "dashboard-proactive",
-            content: portfolio.copilotInsight.body,
-            confidence: portfolio.copilotInsight.confidence,
-            sources: portfolio.copilotInsight.sources.map((s, i) => ({
-              id: `src-${i}`,
-              title: s.title,
-              publisher: s.publisher,
-              lastUpdated: s.timestamp,
-            })),
-            type: "proactive",
-            triggerPage: "dashboard",
-          }}
-        />
+        <div className="bg-surface-raised border border-border-default rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span
+              className="inline-block px-1.5 py-0.5 text-xs font-medium bg-feedback-info text-inverse rounded flex-shrink-0 mt-1"
+              aria-label="AI generated content"
+            >
+              AI
+            </span>
+            <div className="flex-1">
+              <p className="text-sm text-primary">
+                Your portfolio is well-diversified across {sectorAllocation.length}{" "}
+                sectors. Your overall return of{" "}
+                {formatSignedPercent(portfolioSummary.totalGainLossPercent)} is{" "}
+                {portfolioSummary.totalGainLossPercent >=
+                portfolioSummary.annualGoal
+                  ? "exceeding"
+                  : "trailing"}{" "}
+                your {portfolioSummary.goalLabel}, while the{" "}
+                {portfolioSummary.benchmarkLabel} returned{" "}
+                {formatSignedPercent(portfolioSummary.benchmarkReturn)}. Your
+                bond allocation (BND) has a small loss, which is typical in a
+                rising-rate environment. Consider whether this aligns with your
+                risk tolerance.
+              </p>
+              <div className="mt-3 flex items-center gap-4 text-xs">
+                <span className="flex items-center gap-1 text-gain font-medium">
+                  <span aria-hidden="true">&#9679;</span> Confidence: High
+                </span>
+                <span className="text-muted">
+                  Sources: Portfolio data, Market indices
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          § 3.8 — News Feed
-          ════════════════════════════════════════════════════════════════════ */}
-      <section aria-labelledby="news-heading">
+      {/* ─── Section 7: News Feed ─── */}
+      <section aria-labelledby="news-heading" className="mb-6">
         <h2
           id="news-heading"
-          className="text-xl font-semibold text-primary mb-3"
+          className="text-lg font-semibold text-primary mb-3"
         >
-          News
+          News Feed
         </h2>
-
-        <p className="text-xs text-muted italic mb-4">
-          News that mentions what you own or watch. We don&apos;t pick stories to
-          make you trade.
-        </p>
-
-        {/* a11y: Manual activation tabs — Enter/Space activates, arrows move focus only */}
-        <div
-          role="tablist"
-          aria-label="News categories"
-          className="flex border-b border-border-default mb-4"
-        >
-          {NEWS_TABS.map((tab, index) => {
-            const isActive = activeNewsTab === tab;
-            return (
+        <div className="bg-surface-raised border border-border-default rounded-lg">
+          {/* Tabs */}
+          <div
+            role="tablist"
+            aria-label="News categories"
+            className="flex border-b border-border-default px-4"
+          >
+            {newsTabs.map((tab) => (
               <button
                 key={tab}
                 role="tab"
-                /* a11y: aria-selected indicates the currently active tab */
-                aria-selected={isActive}
-                /* a11y: aria-controls links tab to its panel */
-                aria-controls="news-tabpanel"
-                id={`news-tab-${tab.toLowerCase()}`}
-                tabIndex={isActive ? 0 : -1}
-                onClick={() => activateTab(tab)}
-                onKeyDown={(e) => handleTabKeyDown(e, index)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
-                  isActive
+                id={`news-tab-${tab}`}
+                aria-selected={activeNewsTab === tab}
+                aria-controls={`news-panel-${tab}`}
+                tabIndex={activeNewsTab === tab ? 0 : -1}
+                onClick={() => handleNewsTabChange(tab)}
+                onKeyDown={(e) => {
+                  const currentIdx = newsTabs.indexOf(activeNewsTab);
+                  if (e.key === "ArrowRight") {
+                    e.preventDefault();
+                    const nextIdx = (currentIdx + 1) % newsTabs.length;
+                    handleNewsTabChange(newsTabs[nextIdx]);
+                  } else if (e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    const prevIdx =
+                      (currentIdx - 1 + newsTabs.length) % newsTabs.length;
+                    handleNewsTabChange(newsTabs[prevIdx]);
+                  }
+                }}
+                className={`min-h-[44px] min-w-[44px] px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2 ${
+                  activeNewsTab === tab
                     ? "border-action-primary text-action-primary"
-                    : "border-transparent text-secondary hover:text-primary hover:border-border-strong"
+                    : "border-transparent text-muted hover:text-primary hover:border-border-strong"
                 }`}
               >
                 {tab}
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
 
-        {/* Tab panel */}
-        <div
-          ref={newsPanelRef}
-          id="news-tabpanel"
-          role="tabpanel"
-          /* a11y: tabindex="-1" allows programmatic focus after tab activation */
-          tabIndex={-1}
-          aria-labelledby={`news-tab-${activeNewsTab.toLowerCase()}`}
-          className="space-y-3 outline-none"
-        >
-          {filteredNews.length === 0 ? (
-            <p className="text-sm text-muted py-4">
-              No news items in this category right now.
-            </p>
-          ) : (
-            filteredNews.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-lg border border-border-default bg-surface-raised p-4"
-              >
-                <h3 className="text-sm font-semibold text-primary mb-1">
-                  {item.headline}
-                </h3>
-                <p className="text-xs text-muted mb-2">
-                  {item.publisher} &middot; {item.timeAgo}
-                  {item.relatedTickers.length > 0 && (
-                    <>
-                      {" "}
-                      &middot;{" "}
-                      {item.relatedTickers.map((t) => (
-                        <span
-                          key={t}
-                          className="inline-flex items-center rounded bg-surface-overlay px-1.5 py-0.5 text-xs font-medium text-secondary ml-1"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </>
-                  )}
+          {/* Tab panels */}
+          {newsTabs.map((tab) => (
+            <div
+              key={tab}
+              role="tabpanel"
+              id={`news-panel-${tab}`}
+              ref={activeNewsTab === tab ? newsPanelRef : undefined}
+              aria-labelledby={`news-tab-${tab}`}
+              tabIndex={0}
+              hidden={activeNewsTab !== tab}
+              className="p-4 focus:outline-none"
+            >
+              {newsItems.filter((n) => n.tab === tab).length === 0 ? (
+                <p className="text-sm text-muted py-4">
+                  No {tab.toLowerCase()} news available right now.
                 </p>
-                {/* a11y: AI summary clearly labeled for screen readers */}
-                <p className="text-sm text-secondary italic">
-                  <span className="sr-only">AI-generated summary: </span>
-                  {item.aiSummary}
-                </p>
-              </article>
-            ))
-          )}
+              ) : (
+                <div className="space-y-4">
+                  {newsItems
+                    .filter((n) => n.tab === tab)
+                    .map((item) => (
+                      <article
+                        key={item.id}
+                        className="border-b border-border-default last:border-0 pb-4 last:pb-0"
+                      >
+                        <h3 className="text-sm font-semibold text-primary">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-muted mt-1">
+                          {item.source} &middot; {formatDate(item.date)}
+                        </p>
+                        <div className="mt-2 p-2 rounded bg-surface-sunken">
+                          <p className="text-xs text-secondary">
+                            <span
+                              className="inline-block px-1 py-0.5 text-[10px] font-medium bg-feedback-info text-inverse rounded mr-1"
+                              aria-label="AI generated summary"
+                            >
+                              AI Summary
+                            </span>
+                            {item.aiSummary}
+                          </p>
+                        </div>
+                      </article>
+                    ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-// ─── Sort Key Labels (for announcer) ─────────────────────────────────────────
-
-const SORT_KEY_LABELS: Record<SortKey, string> = {
-  symbol: "symbol",
-  shares: "shares",
-  avgCost: "average cost",
-  currentPrice: "current price",
-  marketValue: "market value",
-  gainLossDollars: "gain/loss dollars",
-  gainLossPercent: "gain/loss percent",
-};
-
-// ─── SortableHeader sub-component ────────────────────────────────────────────
-
-function SortableHeader({
-  label,
-  sortKey: key,
-  currentSortKey,
-  currentDirection,
-  onSort,
-  align = "left",
-}: {
-  label: string;
-  sortKey: SortKey;
-  currentSortKey: SortKey;
-  currentDirection: SortDirection;
-  onSort: (key: SortKey) => void;
-  align?: "left" | "right";
-}) {
-  const isActive = currentSortKey === key;
-  return (
-    <th
-      scope="col"
-      /* a11y: aria-sort only on the currently sorted column */
-      aria-sort={isActive ? currentDirection : undefined}
-      className={`px-4 py-3 text-xs font-medium text-muted whitespace-nowrap ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(key)}
-        className={`inline-flex items-center gap-1 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring rounded ${
-          align === "right" ? "flex-row-reverse" : ""
-        }`}
-        aria-label={`Sort by ${label}`}
-      >
-        {label}
-        <span aria-hidden="true" className="text-[10px]">
-          {isActive
-            ? currentDirection === "ascending"
-              ? "\u25B2"
-              : "\u25BC"
-            : "\u25B4\u25BE"}
-        </span>
-      </button>
-    </th>
+    </>
   );
 }

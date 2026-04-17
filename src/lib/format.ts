@@ -1,117 +1,197 @@
 /**
- * format.ts — Formatting utilities for financial data display.
- *
- * All formatting functions produce strings suitable for both visual display
- * and screen reader consumption. Currency values include explicit +/- signs
- * for gain/loss context per CLAUDE.md rule A1.6.
+ * Financial formatting utilities for the Accrue platform.
+ * All formatters produce screen-reader-friendly output.
  */
 
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const compactCurrencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+const percentFormatter = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const numberFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+const sharesFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 4,
+});
+
 /**
- * Format a number as US currency.
- * @example formatCurrency(99656.95) => "$99,656.95"
+ * Format a number as USD currency.
+ * Example: 1234.5 -> "$1,234.50"
  */
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return currencyFormatter.format(value);
 }
 
 /**
- * Format a currency value with explicit +/- sign for gain/loss display.
- * @example formatSignedCurrency(3421.10) => "+$3,421.10"
- * @example formatSignedCurrency(-200) => "-$200.00"
+ * Format a compact currency value for large numbers.
+ * Example: 2500000000 -> "$2.5B"
+ */
+export function formatCompactCurrency(value: number): string {
+  return compactCurrencyFormatter.format(value);
+}
+
+/**
+ * Format a signed currency value with explicit + or - prefix.
+ * Example: 1234.5 -> "+$1,234.50", -500 -> "-$500.00"
  */
 export function formatSignedCurrency(value: number): string {
-  const formatted = formatCurrency(Math.abs(value));
-  return value >= 0 ? `+${formatted}` : `-${formatted}`;
+  const formatted = currencyFormatter.format(Math.abs(value));
+  if (value > 0) return `+${formatted}`;
+  if (value < 0) return `-${formatted}`;
+  return formatted;
 }
 
 /**
- * Format a number as a percentage with explicit +/- sign.
- * @example formatSignedPercent(3.56) => "+3.56%"
- * @example formatSignedPercent(-1.2) => "-1.20%"
- */
-export function formatSignedPercent(value: number): string {
-  const sign = value >= 0 ? "+" : "-";
-  return `${sign}${Math.abs(value).toFixed(2)}%`;
-}
-
-/**
- * Format a number as a percentage without sign.
- * @example formatPercent(83) => "83%"
+ * Format a number as a percentage.
+ * Example: 0.0356 -> "3.56%"
  */
 export function formatPercent(value: number): string {
-  return `${value.toFixed(0)}%`;
+  return percentFormatter.format(value / 100);
 }
 
 /**
- * Format a number with commas for thousands separators.
- * @example formatNumber(99656.95) => "99,656.95"
+ * Format a signed percentage with explicit + or - prefix.
+ * Input is already in percentage form (e.g., 3.56 means 3.56%).
+ * Example: 3.56 -> "+3.56%", -2.1 -> "-2.10%"
  */
-export function formatNumber(value: number, decimals: number = 2): string {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
+export function formatSignedPercent(value: number): string {
+  const formatted = percentFormatter.format(Math.abs(value) / 100);
+  if (value > 0) return `+${formatted}`;
+  if (value < 0) return `-${formatted}`;
+  return formatted;
 }
 
 /**
- * Format shares count — no decimal for whole numbers.
- * @example formatShares(50) => "50"
- * @example formatShares(2.5) => "2.50"
+ * Format a plain number with commas.
+ * Example: 1234567 -> "1,234,567"
+ */
+export function formatNumber(value: number): string {
+  return numberFormatter.format(value);
+}
+
+/**
+ * Format share quantities with up to 4 decimal places.
+ * Example: 15.5 -> "15.5", 0.0034 -> "0.0034"
  */
 export function formatShares(value: number): string {
-  if (Number.isInteger(value)) {
-    return value.toString();
+  return sharesFormatter.format(value);
+}
+
+/**
+ * Direction signal type for gain/loss display.
+ */
+export type GainLossDirection = "up" | "down" | "flat";
+
+/**
+ * Structured gain/loss display data for accessible rendering.
+ */
+export interface GainLossDisplay {
+  /** Formatted text, e.g. "+$1,234.50 (+3.56%)" */
+  text: string;
+  /** Arrow character: "+" for up, "-" for down, "" for flat */
+  arrow: string;
+  /** Screen-reader label for the arrow direction */
+  arrowLabel: string;
+  /** Whether the value is positive */
+  isPositive: boolean;
+  /** Direction signal */
+  signal: GainLossDirection;
+}
+
+/**
+ * Build a complete gain/loss display object for accessible UI rendering.
+ * Every financial value must be Tab-reachable and screen-reader readable.
+ */
+export function getGainLossDisplay(
+  gainLoss: number,
+  gainLossPercent: number
+): GainLossDisplay {
+  const isPositive = gainLoss > 0;
+  const isNegative = gainLoss < 0;
+
+  let signal: GainLossDirection = "flat";
+  let arrow = "";
+  let arrowLabel = "unchanged";
+
+  if (isPositive) {
+    signal = "up";
+    arrow = "\u25B2"; // ▲
+    arrowLabel = "gain";
+  } else if (isNegative) {
+    signal = "down";
+    arrow = "\u25BC"; // ▼
+    arrowLabel = "loss";
   }
-  return value.toFixed(2);
+
+  const currencyPart = formatSignedCurrency(gainLoss);
+  const percentPart = formatSignedPercent(gainLossPercent);
+  const text = `${currencyPart} (${percentPart})`;
+
+  return { text, arrow, arrowLabel, isPositive, signal };
 }
 
 /**
- * Get gain/loss display components for a11y: sign, arrow, color signal.
- * Per spec § 3.4 — explicit sign as text character, labeled arrows, color supplementary.
+ * Format a date string or Date object into a human-readable format.
+ * Example: "2025-03-15" -> "Mar 15, 2025"
  */
-export function getGainLossDisplay(value: number, percent: number) {
-  const isPositive = value >= 0;
-  return {
-    text: formatSignedCurrency(value),
-    percentText: formatSignedPercent(percent),
-    arrow: isPositive ? "↑" : "↓",
-    arrowLabel: isPositive ? "up" : "down",
-    isPositive,
-    signal: isPositive ? "gain" : "loss",
-  };
-}
-
-/**
- * Format a date string as "Apr 10, 2026".
- */
-export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
+export function formatDate(
+  input: string | Date,
+  options?: Intl.DateTimeFormatOptions
+): string {
+  const date = typeof input === "string" ? new Date(input) : input;
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    year: "numeric",
     month: "short",
     day: "numeric",
-    year: "numeric",
-  });
+  };
+  return date.toLocaleDateString("en-US", options ?? defaultOptions);
 }
 
 /**
- * Format a relative timestamp: "2 hours ago", "yesterday".
+ * Format a date as a relative time string for screen readers and UI.
+ * Example: a date 2 hours ago -> "2 hours ago"
  */
-export function formatRelativeTime(isoStr: string): string {
-  const date = new Date(isoStr);
-  const now = new Date("2026-04-16T12:00:00Z");
+export function formatRelativeTime(input: string | Date): string {
+  const date = typeof input === "string" ? new Date(input) : input;
+  const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
 
-  if (diffMins < 60) return `${diffMins} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays === 1) return "yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return formatDate(isoStr.split("T")[0]);
+  if (diffSeconds < 60) return "just now";
+  if (diffMinutes < 60)
+    return `${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""} ago`;
+  if (diffHours < 24)
+    return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+  if (diffWeeks < 5)
+    return `${diffWeeks} week${diffWeeks !== 1 ? "s" : ""} ago`;
+  if (diffMonths < 12)
+    return `${diffMonths} month${diffMonths !== 1 ? "s" : ""} ago`;
+  return `${diffYears} year${diffYears !== 1 ? "s" : ""} ago`;
 }

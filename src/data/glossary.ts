@@ -1,172 +1,231 @@
 /**
- * glossary.ts — Predefined financial term definitions.
- *
- * Per CLAUDE.md rule A3.5: "The AI uses glossary definitions verbatim."
- * These definitions are injected into the copilot prompt context and
- * displayed in the Help & Learn glossary section.
- *
- * Terms are kept in alphabetical order for deterministic rendering.
+ * Financial glossary -- single source of truth for all term definitions.
+ * The AI copilot must use these definitions verbatim (CLAUDE.md A3.5).
  */
 
-export interface GlossaryTerm {
+export interface GlossaryEntry {
   term: string;
   definition: string;
 }
 
-export const glossary: GlossaryTerm[] = [
+export const glossary: GlossaryEntry[] = [
   {
-    term: "Ask Price",
+    term: "Market cap",
     definition:
-      "The lowest price a seller is willing to accept for a security. When you buy a stock, you typically pay the ask price.",
+      "The total value of a company's outstanding shares. Calculated by multiplying the current stock price by the number of shares. Large-cap companies are generally considered more stable.",
   },
   {
-    term: "Asset Allocation",
+    term: "P/E ratio",
     definition:
-      "The strategy of dividing your investments among different asset categories, such as stocks, bonds, and cash, to balance risk and reward based on your goals and risk tolerance.",
+      "Price-to-Earnings ratio. Compares a company's stock price to its earnings per share. A high P/E may mean the stock is overvalued or that investors expect high future growth.",
   },
   {
-    term: "Bid Price",
+    term: "P/S ratio",
     definition:
-      "The highest price a buyer is willing to pay for a security. When you sell a stock, you typically receive the bid price.",
+      "Price-to-Sales ratio. Compares a company's stock price to its revenue per share. Useful for evaluating companies that are not yet profitable.",
   },
   {
-    term: "Bond",
+    term: "Dividend yield",
     definition:
-      "A fixed-income investment where you lend money to a government or company in exchange for periodic interest payments and the return of the bond's face value at maturity.",
+      "The annual dividend payment divided by the stock price, expressed as a percentage. Shows how much cash flow you get for each dollar invested in a stock.",
   },
   {
-    term: "Capital Gains",
+    term: "EPS",
     definition:
-      "The profit you earn when you sell an investment for more than you paid for it. Short-term capital gains (held less than a year) are taxed at your ordinary income rate; long-term gains (held more than a year) are taxed at a lower rate.",
+      "Earnings Per Share. The portion of a company's profit allocated to each outstanding share of common stock. Higher EPS generally indicates greater profitability.",
   },
   {
-    term: "Capital Loss",
+    term: "Revenue growth",
     definition:
-      "The loss you incur when you sell an investment for less than you paid for it. Capital losses can be used to offset capital gains for tax purposes.",
+      "The percentage increase in a company's sales over a specific period, usually year-over-year. Positive revenue growth indicates a company is expanding.",
   },
   {
-    term: "Cost Basis",
+    term: "52-week range",
     definition:
-      "The original price you paid for an investment, including any fees or commissions. Your cost basis is used to calculate capital gains or losses when you sell.",
+      "The lowest and highest prices at which a stock has traded during the past year. Helps you understand the stock's price volatility over time.",
+  },
+  {
+    term: "Beta",
+    definition:
+      "A measure of a stock's volatility relative to the overall market. A beta of 1 means the stock moves with the market. Greater than 1 means more volatile, less than 1 means less volatile.",
   },
   {
     term: "Diversification",
     definition:
-      "The practice of spreading your investments across different asset classes, sectors, and geographies to reduce risk. Diversification does not eliminate risk but helps ensure that a loss in one area does not devastate your entire portfolio.",
+      "Spreading your investments across different assets, sectors, or geographies to reduce risk. The idea is that losses in one area may be offset by gains in another.",
   },
   {
-    term: "Dividend",
+    term: "Concentration risk",
     definition:
-      "A portion of a company's earnings paid to shareholders, usually as cash or additional shares. Dividends are typically paid quarterly and represent a way to earn income from your investments.",
+      "The risk of loss from having too much of your portfolio invested in a single stock, sector, or asset type. The opposite of diversification.",
   },
   {
-    term: "Dollar-Cost Averaging (DCA)",
+    term: "Asset allocation",
     definition:
-      "An investment strategy where you invest a fixed amount of money at regular intervals, regardless of the price. This approach reduces the impact of volatility by buying more shares when prices are low and fewer shares when prices are high.",
-  },
-  {
-    term: "ETF (Exchange-Traded Fund)",
-    definition:
-      "A type of investment fund that trades on stock exchanges like a regular stock. ETFs typically track an index, sector, commodity, or other asset, and offer diversification at a low cost.",
-  },
-  {
-    term: "Expense Ratio",
-    definition:
-      "The annual fee charged by a fund (mutual fund or ETF) to cover its operating expenses, expressed as a percentage of your investment. A lower expense ratio means more of your returns stay in your pocket.",
-  },
-  {
-    term: "Gain/Loss",
-    definition:
-      "The difference between what you paid for an investment (cost basis) and its current value or sale price. A positive difference is a gain; a negative difference is a loss.",
-  },
-  {
-    term: "Index Fund",
-    definition:
-      "A type of mutual fund or ETF designed to match the performance of a specific market index, such as the S&P 500. Index funds offer broad market exposure with low fees.",
-  },
-  {
-    term: "Limit Order",
-    definition:
-      "An order to buy or sell a security at a specific price or better. A buy limit order executes at the limit price or lower; a sell limit order executes at the limit price or higher. The order may not fill if the price is not reached.",
-  },
-  {
-    term: "Market Capitalization",
-    definition:
-      "The total market value of a company's outstanding shares, calculated by multiplying the stock price by the number of shares. Companies are often categorized as large-cap, mid-cap, or small-cap.",
-  },
-  {
-    term: "Market Order",
-    definition:
-      "An order to buy or sell a security immediately at the best available current price. Market orders guarantee execution but not the price.",
-  },
-  {
-    term: "Portfolio",
-    definition:
-      "The collection of all your investments, including stocks, bonds, ETFs, and cash. Your portfolio's composition reflects your investment strategy and risk tolerance.",
-  },
-  {
-    term: "Price-to-Earnings Ratio (P/E)",
-    definition:
-      "A valuation metric calculated by dividing a stock's price by its earnings per share. A higher P/E may indicate that investors expect higher growth, while a lower P/E may suggest the stock is undervalued or the company has slower growth prospects.",
-  },
-  {
-    term: "Rebalancing",
-    definition:
-      "The process of realigning your portfolio's asset allocation back to your target mix by buying or selling assets. Rebalancing helps maintain your desired level of risk over time.",
-  },
-  {
-    term: "Risk Tolerance",
-    definition:
-      "Your ability and willingness to endure declines in the value of your investments. Risk tolerance depends on your financial goals, time horizon, and personal comfort with uncertainty.",
-  },
-  {
-    term: "S&P 500",
-    definition:
-      "A stock market index that tracks the performance of 500 large U.S. companies. It is widely regarded as one of the best measures of overall U.S. stock market performance.",
+      "How your portfolio is divided among different asset categories like stocks, bonds, and cash. Your allocation should reflect your goals, risk tolerance, and time horizon.",
   },
   {
     term: "Sector",
     definition:
-      "A group of companies that operate in the same area of the economy, such as Technology, Healthcare, or Financials. Investing across multiple sectors helps with diversification.",
+      "A group of companies that operate in the same segment of the economy, such as technology, healthcare, or energy. Sector diversification helps manage risk.",
   },
   {
-    term: "Share",
+    term: "Market order",
     definition:
-      "A unit of ownership in a company or fund. When you buy shares of a stock, you become a partial owner of that company.",
+      "An order to buy or sell a stock immediately at the best available price. You get speed but not price certainty.",
   },
   {
-    term: "Stop Order",
+    term: "Limit order",
     definition:
-      "An order to buy or sell a security once it reaches a specified price (the stop price). Once triggered, a stop order becomes a market order and executes at the next available price.",
+      "An order to buy or sell a stock at a specific price or better. Gives you price control but the order may not be filled if the price is never reached.",
   },
   {
-    term: "Stop-Limit Order",
+    term: "Stop order",
     definition:
-      "An order that combines a stop order with a limit order. Once the stop price is reached, the order becomes a limit order that will only execute at the specified limit price or better.",
+      "An order that becomes a market order when a stock reaches a specified price (the stop price). Often used to limit losses or protect profits.",
   },
   {
-    term: "Tax-Loss Harvesting",
+    term: "Bid",
     definition:
-      "A strategy of selling investments at a loss to offset capital gains taxes. The proceeds are typically reinvested in a similar (but not identical) investment to maintain your portfolio's overall allocation.",
+      "The highest price a buyer is willing to pay for a stock at a given moment. Part of the bid-ask spread.",
   },
   {
-    term: "Ticker Symbol",
+    term: "Ask",
     definition:
-      "A unique abbreviation used to identify a publicly traded company on a stock exchange. For example, AAPL represents Apple Inc.",
+      "The lowest price a seller is willing to accept for a stock at a given moment. Also called the offer price.",
   },
   {
-    term: "Time Horizon",
+    term: "Spread",
     definition:
-      "The length of time you expect to hold an investment before you need the money. A longer time horizon generally allows you to take on more risk because you have more time to recover from market downturns.",
+      "The difference between the bid and ask prices. A narrow spread usually indicates high liquidity and active trading.",
+  },
+  {
+    term: "ETF",
+    definition:
+      "Exchange-Traded Fund. A basket of securities (stocks, bonds, etc.) that trades on an exchange like a single stock. ETFs offer diversification at a low cost.",
+  },
+  {
+    term: "Index fund",
+    definition:
+      "A type of mutual fund or ETF designed to match the performance of a specific market index, like the S&P 500. Known for low fees and broad diversification.",
+  },
+  {
+    term: "Bull market",
+    definition:
+      "A market condition where prices are rising or expected to rise, typically defined as a 20% increase from recent lows. Associated with investor optimism.",
+  },
+  {
+    term: "Bear market",
+    definition:
+      "A market condition where prices are falling or expected to fall, typically defined as a 20% decline from recent highs. Associated with investor pessimism.",
   },
   {
     term: "Volatility",
     definition:
-      "A measure of how much the price of an investment fluctuates over time. Higher volatility means the price can change dramatically in a short period, which represents both opportunity and risk.",
+      "A measure of how much a stock's price fluctuates over time. High volatility means the price can change dramatically in a short period, in either direction.",
   },
   {
-    term: "Yield",
+    term: "Portfolio",
     definition:
-      "The income return on an investment, expressed as a percentage of the investment's cost or current value. For stocks, yield usually refers to the dividend yield; for bonds, it refers to the interest yield.",
+      "The collection of all your investments, including stocks, bonds, ETFs, cash, and other assets. A well-managed portfolio aligns with your financial goals.",
+  },
+  {
+    term: "Holdings",
+    definition:
+      "The individual investments within your portfolio. Each stock, bond, or fund you own is a holding.",
+  },
+  {
+    term: "Risk tolerance",
+    definition:
+      "Your ability and willingness to endure declines in the value of your investments. Affected by your financial situation, goals, and emotional comfort with loss.",
+  },
+  {
+    term: "Time horizon",
+    definition:
+      "The length of time you plan to hold an investment before you need the money. Longer time horizons generally allow for more aggressive investing.",
+  },
+  {
+    term: "Dollar-cost averaging",
+    definition:
+      "Investing a fixed amount of money at regular intervals regardless of the stock price. This strategy reduces the impact of volatility on your overall purchase price.",
+  },
+  {
+    term: "Expense ratio",
+    definition:
+      "The annual fee that a fund charges its shareholders, expressed as a percentage of assets. Lower expense ratios mean more of your money stays invested.",
+  },
+  {
+    term: "Short-term capital gains",
+    definition:
+      "Profits from selling an investment held for one year or less. These are taxed at your ordinary income tax rate, which is usually higher than long-term rates.",
+  },
+  {
+    term: "Long-term capital gains",
+    definition:
+      "Profits from selling an investment held for more than one year. These are taxed at preferential rates (0%, 15%, or 20%) depending on your income level.",
+  },
+  {
+    term: "PFOF",
+    definition:
+      "Payment for Order Flow. A practice where a broker receives compensation for directing orders to a particular market maker. This can create conflicts of interest as the broker may not get you the best price.",
+  },
+  {
+    term: "Cost basis",
+    definition:
+      "The original value or purchase price of an asset, adjusted for stock splits, dividends, and return of capital distributions. Used to calculate capital gains or losses.",
+  },
+  {
+    term: "Total return",
+    definition:
+      "The actual rate of return of an investment over a given period, including capital gains, dividends, and interest, expressed as a percentage of the initial investment.",
+  },
+  {
+    term: "Compound interest",
+    definition:
+      "Interest calculated on both the initial principal and the accumulated interest from previous periods. Often called 'interest on interest,' it accelerates wealth building over time.",
   },
 ];
+
+/**
+ * Slug-keyed Record for backward-compatible indexed access.
+ * Keys are lowercase, hyphenated versions of the term (e.g., "pe-ratio", "market-cap").
+ */
+function toSlug(term: string): string {
+  return term
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export const glossaryByKey: Record<string, GlossaryEntry> = Object.fromEntries(
+  glossary.map((entry) => [toSlug(entry.term), entry])
+);
+
+/**
+ * @deprecated Use `glossary` (array) or `glossaryByKey` (Record).
+ * This alias maintains backward compatibility with code that imports
+ * `glossary` and accesses it by slug key.
+ */
+export { glossaryByKey as glossaryMap };
+
+/**
+ * Look up a glossary entry by term (case-insensitive).
+ */
+export function findGlossaryEntry(
+  searchTerm: string
+): GlossaryEntry | undefined {
+  const lower = searchTerm.toLowerCase();
+  return glossary.find((entry) => entry.term.toLowerCase() === lower);
+}
+
+/**
+ * Search glossary entries that contain the query in term or definition.
+ */
+export function searchGlossary(query: string): GlossaryEntry[] {
+  const lower = query.toLowerCase();
+  return glossary.filter(
+    (entry) =>
+      entry.term.toLowerCase().includes(lower) ||
+      entry.definition.toLowerCase().includes(lower)
+  );
+}

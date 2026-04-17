@@ -1,1310 +1,744 @@
 /**
- * mockPortfolio.ts — Single source of truth for all financial data.
- *
- * Per CLAUDE.md rule A5.1: "Every financial figure comes from this module."
- * No component may render a number that doesn't exist as a field here.
+ * Mock portfolio data -- single source of truth for ALL financial figures.
+ * No component may render a number that doesn't exist here (CLAUDE.md A5.1).
  */
 
-// ─── Trade & Journal Types ───────────────────────────────────────────────────
+// ─── Type definitions ───
 
-export type TradeType = "Buy" | "Sell";
-export type OrderType = "Market" | "Limit" | "Stop" | "Stop-Limit";
+export interface DataPoint {
+  date: string;
+  value: number;
+}
 
-export type CalibrationOutcome =
-  | "right"     // Right thesis, right outcome
-  | "wrong"     // Wrong thesis, wrong outcome
-  | "unlucky"   // Right thesis, wrong outcome
-  | "lucky"     // Wrong thesis, right outcome
-  | null;       // Not yet calibrated
+export interface PriceHistory {
+  "1D": DataPoint[];
+  "1W": DataPoint[];
+  "1M": DataPoint[];
+  "3M": DataPoint[];
+  "1Y": DataPoint[];
+  All: DataPoint[];
+}
+
+export interface Fundamentals {
+  marketCap: number;
+  peRatio: number | null;
+  psRatio: number | null;
+  dividendYield: number | null;
+  epsTTM: number | null;
+  revenueGrowthYoY: number | null;
+  week52Low: number;
+  week52High: number;
+  beta: number;
+}
+
+export interface AnalystRatings {
+  buy: number;
+  hold: number;
+  sell: number;
+  priceTargetLow: number;
+  priceTargetMean: number;
+  priceTargetHigh: number;
+  analystCount: number;
+}
+
+export interface EarningsRecord {
+  quarter: string;
+  actual: number;
+  estimate: number;
+  surprise: number;
+}
+
+export interface RelatedNews {
+  id: string;
+  title: string;
+  publisher: string;
+  ts: string;
+  summary: string;
+}
+
+export interface Holding {
+  symbol: string;
+  name: string;
+  shares: number;
+  avgCost: number;
+  currentPrice: number;
+  marketValue: number;
+  gainLoss: number;
+  gainLossPercent: number;
+  direction: "up" | "down" | "flat";
+  sector: string;
+  allocation: number;
+  priceHistory: PriceHistory;
+  fundamentals: Fundamentals;
+  analystRatings: AnalystRatings;
+  earningsHistory: EarningsRecord[];
+  relatedNews: RelatedNews[];
+  /** Backward-compatible aliases for existing page components */
+  averageCost: number;
+  previousClose: number;
+  gainLossDollar: number;
+  costBasis: number;
+  totalReturn: number;
+  totalReturnPercent: number;
+  peRatio: number | null;
+  dividendYield: number | null;
+  analystTargetPrice: number | null;
+}
 
 export interface Transaction {
   id: string;
   date: string;
+  type: "buy" | "sell";
   symbol: string;
-  companyName: string;
-  tradeType: TradeType;
-  quantity: number;
-  pricePerShare: number;
+  shares: number;
+  price: number;
   total: number;
-  fees: number;
-  orderType: OrderType;
-  journalEntryId: string | null;
+  status: "completed" | "pending" | "cancelled";
+}
+
+export interface GoalProgress {
+  target: number;
+  current: number;
+  projectedDate: string;
+  onTrack: boolean;
+  confidencePercent: number;
+  percentComplete: number;
 }
 
 export interface JournalEntry {
   id: string;
   date: string;
   symbol: string;
-  companyName: string;
-  action: TradeType;
+  action: "buy" | "sell" | "hold" | "research";
   quantity: number;
-  pricePerShare: number;
+  price: number;
   rationale: string;
-  regretRehearsal: string | null;
-  calibrationOutcome: CalibrationOutcome;
-  reflection: string | null;
+  regretRehearsal: string;
+  calibration: string;
+  reflection: string;
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-export interface Holding {
-  /** Ticker symbol, e.g. "AAPL" */
-  symbol: string;
-  /** Full company name */
+export interface UserProfile {
   name: string;
-  /** Number of shares owned */
-  shares: number;
-  /** Average cost basis per share */
-  avgCost: number;
-  /** Current market price per share */
-  currentPrice: number;
-  /** Current market value (shares * currentPrice) */
-  marketValue: number;
-  /** Total gain/loss in dollars */
-  gainLossDollars: number;
-  /** Total gain/loss as percentage */
-  gainLossPercent: number;
-  /** Today's price change in dollars */
-  todayChangeDollars: number;
-  /** Today's price change as percentage */
-  todayChangePercent: number;
-  /** Sector classification */
-  sector: string;
-  /** Percentage of total portfolio */
-  portfolioWeight: number;
-}
-
-export interface GoalProgress {
-  /** Target dollar amount */
-  targetAmount: number;
-  /** Current portfolio value */
-  currentAmount: number;
-  /** Target date as ISO string */
-  targetDate: string;
-  /** Display-friendly target date */
-  targetDateDisplay: string;
-  /** Progress as percentage (0-100) */
-  progressPercent: number;
-  /** Confidence level (0-100) */
-  confidencePercent: number;
-  /** Status: "on-track" | "behind" | "needs-attention" */
-  status: "on-track" | "behind" | "needs-attention";
-  /** Status display label */
-  statusLabel: string;
-  /** Lever: additional monthly contribution to get on track */
-  leverMonthly: number;
-  /** Lever: months to extend timeline */
-  leverExtendMonths: number;
-  /** Lever: one-time deposit to get on track */
-  leverOneTime: number;
-}
-
-export interface NewsItem {
-  id: string;
-  headline: string;
-  publisher: string;
-  timestamp: string;
-  /** Relative time display, e.g. "2h ago" */
-  timeAgo: string;
-  /** AI-generated one-line summary */
-  aiSummary: string;
-  /** Which tab this news belongs to */
-  category: "holdings" | "watchlist" | "market" | "education";
-  /** Related ticker symbols, if any */
-  relatedTickers: string[];
-}
-
-export interface PortfolioData {
-  /** Total portfolio market value */
-  totalValue: number;
-  /** Today's change in dollars */
-  todayChangeDollars: number;
-  /** Today's change as percentage */
-  todayChangePercent: number;
-  /** Time-weighted return (all-time) as percentage */
-  timeWeightedReturn: number;
-  /** Money-weighted return (personal) as percentage */
-  moneyWeightedReturn: number;
-  /** Total cost basis */
-  totalCostBasis: number;
-  /** Total gain/loss in dollars */
-  totalGainLossDollars: number;
-  /** Total gain/loss as percentage */
-  totalGainLossPercent: number;
-  /** Number of distinct sectors */
-  sectorCount: number;
-  /** Individual holdings */
-  holdings: Holding[];
-  /** Goal tracking data */
-  goal: GoalProgress;
-  /** News feed items */
-  news: NewsItem[];
-  /** Last login date for "what changed" card */
-  lastLoginDate: string;
-  /** Biggest mover ticker since last login */
-  biggestMoverSymbol: string;
-  /** Biggest mover change percent since last login */
-  biggestMoverChangePercent: number;
-  /** Annual goal return target */
-  annualGoalReturn: number;
-  /** Benchmark name */
-  benchmarkName: string;
-  /** Benchmark return for same period */
-  benchmarkReturn: number;
-  /** Copilot proactive insight */
-  copilotInsight: {
-    title: string;
-    body: string;
-    confidence: "high" | "moderate" | "low";
-    sources: { title: string; publisher: string; timestamp: string }[];
+  riskTolerance: "conservative" | "moderate" | "aggressive";
+  experienceLevel: "beginner" | "intermediate" | "advanced";
+  timeHorizon: string;
+  goal: {
+    type: "growth" | "income" | "preservation";
+    target: number;
+    byDate: string;
   };
-  /** Sector allocations for donut chart */
-  sectorAllocations: { sector: string; value: number; percent: number; color: string }[];
-  /** Transaction history */
-  transactions: Transaction[];
-  /** Decision journal entries */
-  journalEntries: JournalEntry[];
 }
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
+export interface Portfolio {
+  totalValue: number;
+  cashBalance: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+  diversificationRating: "Low" | "Moderate" | "High";
+  timeWeightedReturn: number;
+  moneyWeightedReturn: number;
+  allocationBySector: Record<string, number>;
+}
 
-const holdings: Holding[] = [
+// ─── Helper: generate deterministic price history ───
+
+export function generatePriceHistory(
+  currentPrice: number,
+  volatility: number = 0.02
+): PriceHistory {
+  const generate = (points: number, daysBack: number): DataPoint[] => {
+    const data: DataPoint[] = [];
+    const now = new Date("2026-04-16");
+    const startPrice = currentPrice * (1 - volatility * (daysBack / 30));
+
+    for (let i = 0; i < points; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - daysBack + Math.floor((daysBack * i) / points));
+      const progress = i / points;
+      // Deterministic noise using sin/cos for reproducibility
+      const noise =
+        Math.sin(i * 3.7 + currentPrice) * currentPrice * volatility * 0.3 +
+        Math.cos(i * 2.3 + currentPrice) * currentPrice * volatility * 0.2;
+      const value =
+        startPrice + (currentPrice - startPrice) * progress + noise;
+      data.push({
+        date: date.toISOString().split("T")[0],
+        value: Math.round(Math.max(value, startPrice * 0.8) * 100) / 100,
+      });
+    }
+
+    return data;
+  };
+
+  return {
+    "1D": generate(78, 1),
+    "1W": generate(35, 7),
+    "1M": generate(22, 30),
+    "3M": generate(63, 90),
+    "1Y": generate(252, 365),
+    All: generate(504, 1095),
+  };
+}
+
+// ─── User profile ───
+
+export const user: UserProfile = {
+  name: "Alex",
+  riskTolerance: "moderate",
+  experienceLevel: "beginner",
+  timeHorizon: "5-10 years",
+  goal: {
+    type: "growth",
+    target: 120000,
+    byDate: "2028-12-31",
+  },
+};
+
+// ─── Portfolio summary ───
+
+export const portfolio: Portfolio = {
+  totalValue: 99656.95,
+  cashBalance: 12430,
+  totalGainLoss: 3421.1,
+  totalGainLossPercent: 3.56,
+  diversificationRating: "Low",
+  timeWeightedReturn: 8.2,
+  moneyWeightedReturn: 7.1,
+  allocationBySector: {
+    Technology: 68.4,
+    "Consumer Discretionary": 14.2,
+    "Financial Services": 5.0,
+    Cash: 12.4,
+  },
+};
+
+// ─── Holdings ───
+
+export const holdings: Holding[] = [
   {
     symbol: "AAPL",
     name: "Apple Inc.",
     shares: 50,
-    avgCost: 142.5,
-    currentPrice: 178.72,
-    marketValue: 8936.0,
-    gainLossDollars: 1811.0,
-    gainLossPercent: 25.4,
-    todayChangeDollars: 125.0,
-    todayChangePercent: 1.42,
+    avgCost: 165.2,
+    currentPrice: 214.29,
+    marketValue: 10714.5,
+    gainLoss: 2454.5,
+    gainLossPercent: 29.72,
+    direction: "up",
     sector: "Technology",
-    portfolioWeight: 8.97,
+    allocation: 10.75,
+    priceHistory: generatePriceHistory(214.29, 0.018),
+    fundamentals: {
+      marketCap: 3280000000000,
+      peRatio: 33.4,
+      psRatio: 8.7,
+      dividendYield: 0.44,
+      epsTTM: 6.42,
+      revenueGrowthYoY: 4.9,
+      week52Low: 164.08,
+      week52High: 237.49,
+      beta: 1.24,
+    },
+    analystRatings: {
+      buy: 28,
+      hold: 12,
+      sell: 3,
+      priceTargetLow: 180.0,
+      priceTargetMean: 235.0,
+      priceTargetHigh: 270.0,
+      analystCount: 43,
+    },
+    earningsHistory: [
+      { quarter: "Q1 2026", actual: 1.65, estimate: 1.6, surprise: 3.13 },
+      { quarter: "Q4 2025", actual: 2.18, estimate: 2.11, surprise: 3.32 },
+      { quarter: "Q3 2025", actual: 1.46, estimate: 1.39, surprise: 5.04 },
+      { quarter: "Q2 2025", actual: 1.4, estimate: 1.35, surprise: 3.7 },
+    ],
+    // Backward-compatible aliases
+    averageCost: 165.2,
+    previousClose: 212.5,
+    gainLossDollar: 2454.5,
+    costBasis: 8260.0,
+    totalReturn: 2454.5,
+    totalReturnPercent: 29.72,
+    peRatio: 33.4,
+    dividendYield: 0.44,
+    analystTargetPrice: 235.0,
+    relatedNews: [
+      {
+        id: "aapl-1",
+        title: "Apple Unveils New AI Features Across Product Line",
+        publisher: "Reuters",
+        ts: "2026-04-15T14:30:00Z",
+        summary:
+          "Apple announced a suite of AI-powered features coming to iPhone, Mac, and iPad, deepening its integration of machine learning across its ecosystem.",
+      },
+      {
+        id: "aapl-2",
+        title: "Apple Services Revenue Hits Record Quarter",
+        publisher: "Bloomberg",
+        ts: "2026-04-12T09:15:00Z",
+        summary:
+          "Apple's services segment, including App Store, iCloud, and Apple TV+, posted record quarterly revenue of $24.2 billion.",
+      },
+    ],
   },
   {
     symbol: "NVDA",
     name: "NVIDIA Corporation",
-    shares: 30,
-    avgCost: 220.0,
-    currentPrice: 875.28,
-    marketValue: 26258.4,
-    gainLossDollars: 19658.4,
-    gainLossPercent: 297.85,
-    todayChangeDollars: 1703.4,
-    todayChangePercent: 6.49,
-    sector: "Technology",
-    portfolioWeight: 26.35,
-  },
-  {
-    symbol: "VTI",
-    name: "Vanguard Total Stock Market ETF",
-    shares: 100,
-    avgCost: 195.0,
-    currentPrice: 242.15,
-    marketValue: 24215.0,
-    gainLossDollars: 4715.0,
-    gainLossPercent: 24.18,
-    todayChangeDollars: 605.38,
-    todayChangePercent: 2.5,
-    sector: "Diversified",
-    portfolioWeight: 24.3,
-  },
-  {
-    symbol: "BND",
-    name: "Vanguard Total Bond Market ETF",
-    shares: 150,
-    avgCost: 76.8,
-    currentPrice: 72.45,
-    marketValue: 10867.5,
-    gainLossDollars: -652.5,
-    gainLossPercent: -5.67,
-    todayChangeDollars: -21.75,
-    todayChangePercent: -0.2,
-    sector: "Fixed Income",
-    portfolioWeight: 10.9,
-  },
-  {
-    symbol: "MSFT",
-    name: "Microsoft Corporation",
     shares: 25,
-    avgCost: 280.0,
-    currentPrice: 415.56,
-    marketValue: 10389.0,
-    gainLossDollars: 3389.0,
-    gainLossPercent: 48.41,
-    todayChangeDollars: 259.75,
-    todayChangePercent: 2.56,
+    avgCost: 620.0,
+    currentPrice: 878.56,
+    marketValue: 21964.0,
+    gainLoss: 6464.0,
+    gainLossPercent: 41.68,
+    direction: "up",
     sector: "Technology",
-    portfolioWeight: 10.43,
-  },
-  {
-    symbol: "JNJ",
-    name: "Johnson & Johnson",
-    shares: 40,
-    avgCost: 162.0,
-    currentPrice: 156.89,
-    marketValue: 6275.6,
-    gainLossDollars: -204.4,
-    gainLossPercent: -3.16,
-    todayChangeDollars: 50.28,
-    todayChangePercent: 0.81,
-    sector: "Healthcare",
-    portfolioWeight: 6.3,
-  },
-  {
-    symbol: "VXUS",
-    name: "Vanguard Total International Stock ETF",
-    shares: 120,
-    avgCost: 55.0,
-    currentPrice: 59.61,
-    marketValue: 7153.2,
-    gainLossDollars: 553.2,
-    gainLossPercent: 8.38,
-    todayChangeDollars: 214.32,
-    todayChangePercent: 3.0,
-    sector: "International",
-    portfolioWeight: 7.18,
-  },
-  {
-    symbol: "SCHD",
-    name: "Schwab U.S. Dividend Equity ETF",
-    shares: 70,
-    avgCost: 72.0,
-    currentPrice: 80.82,
-    marketValue: 5657.4,
-    gainLossDollars: 617.4,
-    gainLossPercent: 12.24,
-    todayChangeDollars: 484.72,
-    todayChangePercent: 8.57,
-    sector: "Diversified",
-    portfolioWeight: 5.68,
-  },
-];
-
-const sectorAllocations = [
-  { sector: "Technology", value: 45583.4, percent: 45.75, color: "var(--color-action-primary)" },
-  { sector: "Diversified", value: 29872.4, percent: 29.98, color: "var(--color-feedback-info)" },
-  { sector: "Fixed Income", value: 10867.5, percent: 10.9, color: "var(--color-feedback-warning)" },
-  { sector: "International", value: 7153.2, percent: 7.18, color: "var(--color-feedback-success)" },
-  { sector: "Healthcare", value: 6275.6, percent: 6.3, color: "var(--color-action-destructive)" },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Stock universe (searchable in order entry)                        */
-/* ------------------------------------------------------------------ */
-
-export interface StockQuote {
-  symbol: string;
-  name: string;
-  sector: string;
-  currentPrice: number;
-  todayChangeDollars: number;
-  todayChangePercent: number;
-}
-
-export const stockUniverse: StockQuote[] = [
-  { symbol: "AAPL", name: "Apple Inc.", sector: "Technology", currentPrice: 178.72, todayChangeDollars: 2.50, todayChangePercent: 1.42 },
-  { symbol: "NVDA", name: "NVIDIA Corporation", sector: "Technology", currentPrice: 875.28, todayChangeDollars: 56.78, todayChangePercent: 6.49 },
-  { symbol: "MSFT", name: "Microsoft Corporation", sector: "Technology", currentPrice: 415.56, todayChangeDollars: 10.39, todayChangePercent: 2.56 },
-  { symbol: "GOOGL", name: "Alphabet Inc.", sector: "Technology", currentPrice: 175.98, todayChangeDollars: 0.88, todayChangePercent: 0.50 },
-  { symbol: "AMZN", name: "Amazon.com Inc.", sector: "Consumer Discretionary", currentPrice: 186.50, todayChangeDollars: -0.45, todayChangePercent: -0.24 },
-  { symbol: "META", name: "Meta Platforms Inc.", sector: "Technology", currentPrice: 505.75, todayChangeDollars: 3.60, todayChangePercent: 0.72 },
-  { symbol: "TSLA", name: "Tesla Inc.", sector: "Consumer Discretionary", currentPrice: 245.20, todayChangeDollars: -4.80, todayChangePercent: -1.92 },
-  { symbol: "JPM", name: "JPMorgan Chase & Co.", sector: "Financials", currentPrice: 198.30, todayChangeDollars: 1.15, todayChangePercent: 0.58 },
-  { symbol: "V", name: "Visa Inc.", sector: "Financials", currentPrice: 280.45, todayChangeDollars: 0.90, todayChangePercent: 0.32 },
-  { symbol: "JNJ", name: "Johnson & Johnson", sector: "Healthcare", currentPrice: 156.89, todayChangeDollars: -0.22, todayChangePercent: -0.14 },
-  { symbol: "XOM", name: "Exxon Mobil Corporation", sector: "Energy", currentPrice: 104.60, todayChangeDollars: 0.55, todayChangePercent: 0.53 },
-  { symbol: "PG", name: "Procter & Gamble Co.", sector: "Consumer Staples", currentPrice: 162.30, todayChangeDollars: 0.30, todayChangePercent: 0.18 },
-  { symbol: "UNH", name: "UnitedHealth Group Inc.", sector: "Healthcare", currentPrice: 520.15, todayChangeDollars: -3.40, todayChangePercent: -0.65 },
-  { symbol: "VTI", name: "Vanguard Total Stock Market ETF", sector: "Diversified", currentPrice: 242.15, todayChangeDollars: 6.05, todayChangePercent: 2.50 },
-  { symbol: "BND", name: "Vanguard Total Bond Market ETF", sector: "Fixed Income", currentPrice: 72.45, todayChangeDollars: 0.10, todayChangePercent: 0.14 },
-  { symbol: "VXUS", name: "Vanguard Total International Stock ETF", sector: "International", currentPrice: 59.61, todayChangeDollars: 1.79, todayChangePercent: 3.00 },
-  { symbol: "SCHD", name: "Schwab U.S. Dividend Equity ETF", sector: "Diversified", currentPrice: 80.82, todayChangeDollars: 6.92, todayChangePercent: 8.57 },
-];
-
-/**
- * Search stocks by ticker or name (case-insensitive prefix/substring match).
- * Returns at most `limit` results.
- */
-export function searchStocks(query: string, limit = 8): StockQuote[] {
-  if (!query.trim()) return [];
-  const q = query.toLowerCase();
-  return stockUniverse
-    .filter((s) => s.symbol.toLowerCase().startsWith(q) || s.name.toLowerCase().includes(q))
-    .slice(0, limit);
-}
-
-export function getStockBySymbol(symbol: string): StockQuote | undefined {
-  return stockUniverse.find((s) => s.symbol.toUpperCase() === symbol.toUpperCase());
-}
-
-export function getHoldingBySymbol(symbol: string): Holding | undefined {
-  return holdings.find((h) => h.symbol.toUpperCase() === symbol.toUpperCase());
-}
-
-/* ------------------------------------------------------------------ */
-/*  Fee schedule                                                      */
-/* ------------------------------------------------------------------ */
-
-export interface FeeSchedule {
-  /** Commission per stock trade */
-  stockCommission: number;
-  /** Estimated spread cost as a fraction of order value (e.g. 0.001 = 0.1%) */
-  estimatedSpreadFraction: number;
-  /** SEC fee per dollar of sell orders */
-  secFeePerDollar: number;
-  /** TAF fee per share sold */
-  tafFeePerShare: number;
-}
-
-export const feeSchedule: FeeSchedule = {
-  stockCommission: 0.00,
-  estimatedSpreadFraction: 0.001,
-  secFeePerDollar: 0.0000278,
-  tafFeePerShare: 0.000166,
-};
-
-/**
- * Calculate estimated fees for a trade.
- */
-export function calculateFees(
-  action: "buy" | "sell",
-  quantity: number,
-  price: number,
-): { spread: number; commission: number; secFee: number; tafFee: number; total: number } {
-  const orderValue = quantity * price;
-  const spread = +(orderValue * feeSchedule.estimatedSpreadFraction).toFixed(4);
-  const commission = feeSchedule.stockCommission;
-  const secFee = action === "sell" ? +(orderValue * feeSchedule.secFeePerDollar).toFixed(4) : 0;
-  const tafFee = action === "sell" ? +(quantity * feeSchedule.tafFeePerShare).toFixed(4) : 0;
-  const total = +(spread + commission + secFee + tafFee).toFixed(4);
-  return { spread, commission, secFee, tafFee, total };
-}
-
-/* ------------------------------------------------------------------ */
-/*  Tax info                                                          */
-/* ------------------------------------------------------------------ */
-
-export interface TaxInfo {
-  shortTermRate: number;
-  longTermRate: number;
-  realizedShortTermGains: number;
-  realizedLongTermGains: number;
-}
-
-export const taxInfo: TaxInfo = {
-  shortTermRate: 0.22,
-  longTermRate: 0.15,
-  realizedShortTermGains: 120.50,
-  realizedLongTermGains: 450.00,
-};
-
-/* ------------------------------------------------------------------ */
-/*  Account info for review page                                      */
-/* ------------------------------------------------------------------ */
-
-export const accountInfo = {
-  name: "Individual Brokerage",
-  type: "Taxable" as const,
-  cashBalance: 5000.00,
-};
-
-/* ------------------------------------------------------------------ */
-/*  Sector targets for concentration warnings                         */
-/* ------------------------------------------------------------------ */
-
-export const sectorTargets: Record<string, number> = {
-  Technology: 40,
-  Diversified: 25,
-  "Fixed Income": 10,
-  Healthcare: 10,
-  International: 10,
-  "Consumer Discretionary": 5,
-  Financials: 5,
-  "Consumer Staples": 5,
-  Energy: 5,
-};
-
-/* ------------------------------------------------------------------ */
-/*  Assembled portfolio                                               */
-/* ------------------------------------------------------------------ */
-
-export const mockPortfolio: PortfolioData = {
-  totalValue: 99656.95,
-  todayChangeDollars: 3421.1,
-  todayChangePercent: 3.56,
-  timeWeightedReturn: 18.42,
-  moneyWeightedReturn: 21.07,
-  totalCostBasis: 82174.0,
-  totalGainLossDollars: 17482.95,
-  totalGainLossPercent: 21.27,
-  sectorCount: 5,
-  holdings,
-  goal: {
-    targetAmount: 120000,
-    currentAmount: 99656.95,
-    targetDate: "2027-08-01",
-    targetDateDisplay: "August 2027",
-    progressPercent: 83,
-    confidencePercent: 83,
-    status: "behind",
-    statusLabel: "A little behind",
-    leverMonthly: 350,
-    leverExtendMonths: 4,
-    leverOneTime: 4200,
-  },
-  news: [
-    {
-      id: "n1",
-      headline: "NVIDIA Q4 Earnings Beat Expectations, Data Center Revenue Surges",
-      publisher: "Reuters",
-      timestamp: "2026-04-16T10:30:00Z",
-      timeAgo: "2h ago",
-      aiSummary:
-        "NVIDIA reported record data center revenue, driven by AI chip demand. Analysts raised price targets.",
-      category: "holdings",
-      relatedTickers: ["NVDA"],
+    allocation: 22.04,
+    priceHistory: generatePriceHistory(878.56, 0.035),
+    fundamentals: {
+      marketCap: 2160000000000,
+      peRatio: 62.8,
+      psRatio: 35.2,
+      dividendYield: 0.02,
+      epsTTM: 13.99,
+      revenueGrowthYoY: 122.4,
+      week52Low: 473.2,
+      week52High: 974.94,
+      beta: 1.68,
     },
-    {
-      id: "n2",
-      headline: "Apple Announces New AI-Powered Features for iPhone",
-      publisher: "Bloomberg",
-      timestamp: "2026-04-16T09:15:00Z",
-      timeAgo: "3h ago",
-      aiSummary:
-        "Apple unveiled on-device AI features at a spring event, aiming to compete with Google and Samsung.",
-      category: "holdings",
-      relatedTickers: ["AAPL"],
-    },
-    {
-      id: "n3",
-      headline: "Bond Market Sees Renewed Interest as Rate Cuts Expected",
-      publisher: "Financial Times",
-      timestamp: "2026-04-16T08:00:00Z",
-      timeAgo: "4h ago",
-      aiSummary:
-        "Treasury yields fell as investors priced in rate cuts, boosting bond ETFs like BND.",
-      category: "holdings",
-      relatedTickers: ["BND"],
-    },
-    {
-      id: "n4",
-      headline: "Tesla Reports First Quarter Delivery Numbers",
-      publisher: "CNBC",
-      timestamp: "2026-04-16T07:45:00Z",
-      timeAgo: "5h ago",
-      aiSummary:
-        "Tesla deliveries came in below analyst estimates, raising questions about demand.",
-      category: "watchlist",
-      relatedTickers: ["TSLA"],
-    },
-    {
-      id: "n5",
-      headline: "S&P 500 Hits New All-Time High on Tech Rally",
-      publisher: "AP",
-      timestamp: "2026-04-16T06:30:00Z",
-      timeAgo: "6h ago",
-      aiSummary:
-        "The S&P 500 reached a record level, led by semiconductor and cloud computing stocks.",
-      category: "market",
-      relatedTickers: [],
-    },
-    {
-      id: "n6",
-      headline: "What Is Dollar-Cost Averaging and Why Does It Work?",
-      publisher: "Accrue Learn",
-      timestamp: "2026-04-15T12:00:00Z",
-      timeAgo: "1d ago",
-      aiSummary:
-        "Dollar-cost averaging spreads purchases over time, reducing the impact of volatility on your portfolio.",
-      category: "education",
-      relatedTickers: [],
-    },
-  ],
-  lastLoginDate: "2026-04-15",
-  biggestMoverSymbol: "NVDA",
-  biggestMoverChangePercent: 6.49,
-  annualGoalReturn: 8,
-  benchmarkName: "S&P 500",
-  benchmarkReturn: 16.3,
-  copilotInsight: {
-    title: "Concentration Risk: Technology at 45.75%",
-    body: "Technology stocks make up 45.75% of your portfolio, which is above the 30% threshold for a single sector. If the tech sector declines, your portfolio could be significantly impacted. Consider whether this level of concentration aligns with your risk tolerance and goals.",
-    confidence: "high",
-    sources: [
-      {
-        title: "Portfolio Diversification Guidelines",
-        publisher: "Accrue Research",
-        timestamp: "2026-04-16T08:00:00Z",
-      },
-      {
-        title: "Sector Concentration Risk Analysis",
-        publisher: "Morningstar",
-        timestamp: "2026-04-15T14:00:00Z",
-      },
-    ],
-  },
-  sectorAllocations,
-
-  transactions: [
-    {
-      id: "txn-001",
-      date: "2026-04-14T10:32:00Z",
-      symbol: "AAPL",
-      companyName: "Apple Inc.",
-      tradeType: "Buy",
-      quantity: 10,
-      pricePerShare: 176.50,
-      total: 1765.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: "journal-001",
-    },
-    {
-      id: "txn-002",
-      date: "2026-04-10T14:15:00Z",
-      symbol: "BND",
-      companyName: "Vanguard Total Bond Market ETF",
-      tradeType: "Buy",
-      quantity: 20,
-      pricePerShare: 73.80,
-      total: 1476.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: "journal-002",
-    },
-    {
-      id: "txn-003",
-      date: "2026-04-07T09:45:00Z",
-      symbol: "MSFT",
-      companyName: "Microsoft Corporation",
-      tradeType: "Buy",
-      quantity: 5,
-      pricePerShare: 332.10,
-      total: 1660.50,
-      fees: 0.00,
-      orderType: "Limit",
-      journalEntryId: "journal-003",
-    },
-    {
-      id: "txn-004",
-      date: "2026-03-28T11:20:00Z",
-      symbol: "VTI",
-      companyName: "Vanguard Total Stock Market ETF",
-      tradeType: "Buy",
-      quantity: 15,
-      pricePerShare: 218.40,
-      total: 3276.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: "journal-004",
-    },
-    {
-      id: "txn-005",
-      date: "2026-03-20T15:05:00Z",
-      symbol: "NVDA",
-      companyName: "NVIDIA Corporation",
-      tradeType: "Buy",
-      quantity: 10,
-      pricePerShare: 820.00,
-      total: 8200.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: "journal-005",
-    },
-    {
-      id: "txn-006",
-      date: "2026-03-15T10:00:00Z",
-      symbol: "AAPL",
-      companyName: "Apple Inc.",
-      tradeType: "Sell",
-      quantity: 5,
-      pricePerShare: 170.25,
-      total: 851.25,
-      fees: 0.00,
-      orderType: "Stop",
-      journalEntryId: "journal-006",
-    },
-    {
-      id: "txn-007",
-      date: "2026-03-05T13:30:00Z",
-      symbol: "VTI",
-      companyName: "Vanguard Total Stock Market ETF",
-      tradeType: "Buy",
-      quantity: 25,
-      pricePerShare: 205.80,
-      total: 5145.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: null,
-    },
-    {
-      id: "txn-008",
-      date: "2026-02-20T09:15:00Z",
-      symbol: "AAPL",
-      companyName: "Apple Inc.",
-      tradeType: "Buy",
-      quantity: 20,
-      pricePerShare: 155.30,
-      total: 3106.00,
-      fees: 0.00,
-      orderType: "Limit",
-      journalEntryId: null,
-    },
-    {
-      id: "txn-009",
-      date: "2026-02-10T11:45:00Z",
-      symbol: "BND",
-      companyName: "Vanguard Total Bond Market ETF",
-      tradeType: "Sell",
-      quantity: 10,
-      pricePerShare: 74.40,
-      total: 744.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: null,
-    },
-    {
-      id: "txn-010",
-      date: "2026-01-15T10:30:00Z",
-      symbol: "MSFT",
-      companyName: "Microsoft Corporation",
-      tradeType: "Buy",
-      quantity: 10,
-      pricePerShare: 298.50,
-      total: 2985.00,
-      fees: 0.00,
-      orderType: "Market",
-      journalEntryId: null,
-    },
-  ],
-
-  journalEntries: [
-    {
-      id: "journal-001",
-      date: "2026-04-14T10:32:00Z",
-      symbol: "AAPL",
-      companyName: "Apple Inc.",
-      action: "Buy",
-      quantity: 10,
-      pricePerShare: 176.50,
-      rationale:
-        "Apple's services revenue continues to grow at 15% year-over-year. The iPhone 17 cycle is expected to drive hardware upgrades. Adding to my existing position at what I believe is a reasonable valuation relative to earnings growth.",
-      regretRehearsal:
-        "If the price drops 15% in the next quarter, I would still hold because my thesis is about long-term services growth, not short-term price movement.",
-      calibrationOutcome: null,
-      reflection: null,
-    },
-    {
-      id: "journal-002",
-      date: "2026-04-10T14:15:00Z",
-      symbol: "BND",
-      companyName: "Vanguard Total Bond Market ETF",
-      action: "Buy",
-      quantity: 20,
-      pricePerShare: 73.80,
-      rationale:
-        "Rebalancing my portfolio toward a 70/30 stock-bond allocation. Interest rates appear to have peaked, which should benefit bond prices. This purchase brings my bond allocation from 22% to 27%.",
-      regretRehearsal:
-        "If bonds continue to decline, I am comfortable holding because the income from coupon payments supports my overall portfolio stability.",
-      calibrationOutcome: "unlucky",
-      reflection:
-        "My thesis about rates peaking was correct based on Fed commentary, but unexpected inflation data pushed bond prices lower. The rebalancing rationale was sound even though short-term returns were negative.",
-    },
-    {
-      id: "journal-003",
-      date: "2026-04-07T09:45:00Z",
-      symbol: "MSFT",
-      companyName: "Microsoft Corporation",
-      action: "Buy",
-      quantity: 5,
-      pricePerShare: 332.10,
-      rationale:
-        "Microsoft's Azure cloud revenue is growing at 29% and AI integration with Copilot is showing strong enterprise adoption. Set a limit order at $332 because I believe the stock is fairly valued below $340.",
-      regretRehearsal: null,
-      calibrationOutcome: "right",
-      reflection:
-        "Azure growth came in at 31% and the stock moved to $338. My limit order filled at a good entry point. The AI thesis is playing out as expected with enterprise Copilot subscriptions exceeding guidance.",
-    },
-    {
-      id: "journal-004",
-      date: "2026-03-28T11:20:00Z",
-      symbol: "VTI",
-      companyName: "Vanguard Total Stock Market ETF",
-      action: "Buy",
-      quantity: 15,
-      pricePerShare: 218.40,
-      rationale:
-        "Dollar-cost averaging into my core index position. I invest in VTI on the last trading day of each month regardless of price, as part of my systematic investment plan.",
-      regretRehearsal:
-        "This is a systematic purchase. Even if the market drops significantly, I will continue monthly purchases because decades of data show DCA into broad index funds produces strong long-term results.",
-      calibrationOutcome: "right",
-      reflection:
-        "Systematic investing removes emotional decision-making. The market was up 3% since this purchase, validating the approach, though any single month's result is irrelevant to the long-term thesis.",
-    },
-    {
-      id: "journal-005",
-      date: "2026-03-20T15:05:00Z",
-      symbol: "NVDA",
-      companyName: "NVIDIA Corporation",
-      action: "Buy",
-      quantity: 10,
-      pricePerShare: 820.00,
-      rationale:
-        "NVIDIA is the clear leader in AI training chips. Data center revenue is growing at 200%+ year-over-year. Despite the high valuation, I believe the AI infrastructure build-out will sustain growth for several more quarters.",
-      regretRehearsal:
-        "If antitrust or export restrictions impact NVIDIA, the stock could drop 20-30%. I would reassess my thesis but likely hold a reduced position given the long-term structural AI demand.",
-      calibrationOutcome: "lucky",
-      reflection:
-        "The stock rose 7% but primarily due to a broad market rally in semiconductors, not specifically the AI thesis I outlined. Actual AI revenue beat expectations, but the price move was correlated with sector rotation rather than fundamentals.",
-    },
-    {
-      id: "journal-006",
-      date: "2026-03-15T10:00:00Z",
-      symbol: "AAPL",
-      companyName: "Apple Inc.",
-      action: "Sell",
-      quantity: 5,
-      pricePerShare: 170.25,
-      rationale:
-        "Taking partial profits to rebalance. Apple had grown to 12% of my portfolio, above my 10% single-stock limit. Selling 5 shares brings it back within my risk parameters.",
-      regretRehearsal:
-        "If Apple continues to rise after I sell, that is acceptable because risk management is more important than maximizing any single position. My rule is firm: no single stock above 10%.",
-      calibrationOutcome: "wrong",
-      reflection:
-        "Apple rose 5% after I sold, which means my rebalancing cost me some upside. However, I maintain that the process was correct even if the short-term outcome was suboptimal. Position sizing discipline matters more than one trade.",
-    },
-  ],
-};
-
-/* ------------------------------------------------------------------ */
-/*  Research page data                                                 */
-/*  Per CLAUDE.md A5: all financial figures for the research pages     */
-/*  must be defined here before building components.                   */
-/* ------------------------------------------------------------------ */
-
-export interface AnalystRatings {
-  buy: number;
-  hold: number;
-  sell: number;
-  total: number;
-  priceTarget: {
-    low: number;
-    mean: number;
-    high: number;
-  };
-}
-
-export interface EarningsQuarter {
-  quarter: string;
-  actual: number;
-  estimate: number;
-  /** Surprise as a percentage, positive = beat */
-  surprisePercent: number;
-}
-
-export interface ResearchNewsItem {
-  headline: string;
-  publisher: string;
-  /** ISO 8601 timestamp */
-  timestamp: string;
-  /** One-line AI summary */
-  aiSummary: string;
-}
-
-export interface ResearchData {
-  symbol: string;
-  name: string;
-  currentPrice: number;
-  todayChangeDollars: number;
-  todayChangePercent: number;
-
-  /* Fundamentals */
-  marketCap: number;
-  /** Price-to-earnings ratio (trailing twelve months); null for ETFs */
-  peRatio: number | null;
-  /** Price-to-sales ratio */
-  psRatio: number | null;
-  /** Annual dividend yield as a decimal (0.0052 = 0.52%) */
-  dividendYield: number;
-  /** Earnings per share — trailing twelve months */
-  epsTTM: number | null;
-  /** Year-over-year revenue growth as a decimal (0.054 = 5.4%) */
-  revenueGrowthYoY: number | null;
-  /** 52-week low */
-  fiftyTwoWeekLow: number;
-  /** 52-week high */
-  fiftyTwoWeekHigh: number;
-  /** Beta relative to S&P 500 */
-  beta: number;
-
-  /* Analyst ratings */
-  analystRatings: AnalystRatings;
-
-  /* Earnings history */
-  earningsHistory: EarningsQuarter[];
-  /** Expected next earnings date, ISO 8601 or empty string */
-  nextEarningsDate: string;
-
-  /* News */
-  news: ResearchNewsItem[];
-
-  /* Chart — daily closing prices for past 30 trading days */
-  chartData30d: number[];
-}
-
-export const researchData: ResearchData[] = [
-  {
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    currentPrice: 178.72,
-    todayChangeDollars: 2.50,
-    todayChangePercent: 1.42,
-    marketCap: 2_780_000_000_000,
-    peRatio: 29.6,
-    psRatio: 7.3,
-    dividendYield: 0.0055,
-    epsTTM: 6.04,
-    revenueGrowthYoY: 0.054,
-    fiftyTwoWeekLow: 152.08,
-    fiftyTwoWeekHigh: 199.62,
-    beta: 1.21,
     analystRatings: {
-      buy: 28, hold: 9, sell: 3, total: 40,
-      priceTarget: { low: 160.00, mean: 210.00, high: 250.00 },
+      buy: 45,
+      hold: 8,
+      sell: 2,
+      priceTargetLow: 650.0,
+      priceTargetMean: 950.0,
+      priceTargetHigh: 1200.0,
+      analystCount: 55,
     },
     earningsHistory: [
-      { quarter: "Q1 2026", actual: 1.65, estimate: 1.60, surprisePercent: 3.13 },
-      { quarter: "Q4 2025", actual: 2.18, estimate: 2.10, surprisePercent: 3.81 },
-      { quarter: "Q3 2025", actual: 1.46, estimate: 1.39, surprisePercent: 5.04 },
-      { quarter: "Q2 2025", actual: 1.40, estimate: 1.35, surprisePercent: 3.70 },
+      { quarter: "Q1 2026", actual: 5.98, estimate: 5.59, surprise: 6.98 },
+      { quarter: "Q4 2025", actual: 5.16, estimate: 4.64, surprise: 11.21 },
+      { quarter: "Q3 2025", actual: 4.02, estimate: 3.37, surprise: 19.29 },
+      { quarter: "Q2 2025", actual: 2.7, estimate: 2.09, surprise: 29.19 },
     ],
-    nextEarningsDate: "2026-07-31",
-    news: [
+    // Backward-compatible aliases
+    averageCost: 620.0,
+    previousClose: 870.2,
+    gainLossDollar: 6464.0,
+    costBasis: 15500.0,
+    totalReturn: 6464.0,
+    totalReturnPercent: 41.68,
+    peRatio: 62.8,
+    dividendYield: 0.02,
+    analystTargetPrice: 950.0,
+    relatedNews: [
       {
-        headline: "Apple Announces New AI-Powered Features for iPhone",
-        publisher: "Bloomberg",
-        timestamp: "2026-04-16T09:15:00Z",
-        aiSummary: "Apple unveiled on-device AI features at a spring event, aiming to compete with Google and Samsung.",
+        id: "nvda-1",
+        title: "NVIDIA Data Center Revenue Surges on AI Demand",
+        publisher: "CNBC",
+        ts: "2026-04-14T16:00:00Z",
+        summary:
+          "NVIDIA reported data center revenue growth of 154% year-over-year, driven by surging demand for AI training and inference chips.",
       },
       {
-        headline: "Services Revenue Hits Record High in Q1",
-        publisher: "Reuters",
-        timestamp: "2026-04-15T14:20:00Z",
-        aiSummary: "Apple's services segment grew 18% year-over-year, driven by App Store and Apple TV+ subscriptions.",
-      },
-      {
-        headline: "Supply Chain Diversification Continues in Southeast Asia",
-        publisher: "Wall Street Journal",
-        timestamp: "2026-04-14T11:00:00Z",
-        aiSummary: "Apple is shifting more production to Vietnam and India as part of its ongoing supply chain strategy.",
-      },
-    ],
-    chartData30d: [
-      170.50, 171.20, 172.00, 171.50, 173.00, 174.20, 173.80, 174.50,
-      175.00, 174.30, 173.80, 174.60, 175.20, 175.80, 175.00, 174.50,
-      175.30, 176.00, 175.50, 174.80, 175.60, 176.20, 175.90, 176.50,
-      176.00, 175.50, 175.80, 176.10, 176.22, 178.72,
-    ],
-  },
-  {
-    symbol: "NVDA",
-    name: "NVIDIA Corporation",
-    currentPrice: 875.28,
-    todayChangeDollars: 56.78,
-    todayChangePercent: 6.49,
-    marketCap: 2_150_000_000_000,
-    peRatio: 72.5,
-    psRatio: 35.1,
-    dividendYield: 0.0002,
-    epsTTM: 12.07,
-    revenueGrowthYoY: 1.22,
-    fiftyTwoWeekLow: 410.00,
-    fiftyTwoWeekHigh: 920.00,
-    beta: 1.65,
-    analystRatings: {
-      buy: 38, hold: 4, sell: 1, total: 43,
-      priceTarget: { low: 650.00, mean: 950.00, high: 1200.00 },
-    },
-    earningsHistory: [
-      { quarter: "Q1 2026", actual: 5.98, estimate: 5.60, surprisePercent: 6.79 },
-      { quarter: "Q4 2025", actual: 5.16, estimate: 4.64, surprisePercent: 11.21 },
-      { quarter: "Q3 2025", actual: 4.02, estimate: 3.37, surprisePercent: 19.29 },
-      { quarter: "Q2 2025", actual: 2.70, estimate: 2.09, surprisePercent: 29.19 },
-    ],
-    nextEarningsDate: "2026-05-28",
-    news: [
-      {
-        headline: "NVIDIA Q4 Earnings Beat Expectations, Data Center Revenue Surges",
-        publisher: "Reuters",
-        timestamp: "2026-04-16T10:30:00Z",
-        aiSummary: "NVIDIA reported record data center revenue, driven by AI chip demand. Analysts raised price targets.",
-      },
-      {
-        headline: "New Blackwell GPU Architecture Enters Mass Production",
+        id: "nvda-2",
+        title: "New Blackwell GPUs Enter Mass Production",
         publisher: "The Verge",
-        timestamp: "2026-04-15T08:00:00Z",
-        aiSummary: "NVIDIA's next-generation Blackwell chips begin shipping to hyperscale cloud providers.",
+        ts: "2026-04-10T11:00:00Z",
+        summary:
+          "NVIDIA confirmed its next-generation Blackwell GPU architecture has entered full mass production, with major cloud providers placing large orders.",
       },
-      {
-        headline: "China Export Restrictions Tighten Further",
-        publisher: "Financial Times",
-        timestamp: "2026-04-13T11:00:00Z",
-        aiSummary: "New US export controls could reduce NVIDIA's addressable market in China by an estimated $5B annually.",
-      },
-    ],
-    chartData30d: [
-      780.00, 790.10, 785.50, 795.80, 810.00, 805.30, 815.00, 820.20,
-      810.50, 825.00, 830.40, 828.00, 835.60, 840.00, 832.50, 838.00,
-      842.30, 848.00, 845.50, 850.20, 855.00, 860.30, 852.80, 858.00,
-      862.40, 855.00, 860.50, 865.00, 818.50, 875.28,
     ],
   },
   {
     symbol: "MSFT",
     name: "Microsoft Corporation",
-    currentPrice: 415.56,
-    todayChangeDollars: 10.39,
-    todayChangePercent: 2.56,
-    marketCap: 3_090_000_000_000,
-    peRatio: 34.6,
-    psRatio: 12.8,
-    dividendYield: 0.0074,
-    epsTTM: 12.02,
-    revenueGrowthYoY: 0.138,
-    fiftyTwoWeekLow: 340.22,
-    fiftyTwoWeekHigh: 432.00,
-    beta: 0.89,
+    shares: 40,
+    avgCost: 380.5,
+    currentPrice: 442.87,
+    marketValue: 17714.8,
+    gainLoss: 2494.8,
+    gainLossPercent: 16.39,
+    direction: "up",
+    sector: "Technology",
+    allocation: 17.78,
+    priceHistory: generatePriceHistory(442.87, 0.015),
+    fundamentals: {
+      marketCap: 3290000000000,
+      peRatio: 36.2,
+      psRatio: 13.8,
+      dividendYield: 0.72,
+      epsTTM: 12.23,
+      revenueGrowthYoY: 15.2,
+      week52Low: 362.9,
+      week52High: 468.35,
+      beta: 0.89,
+    },
     analystRatings: {
-      buy: 35, hold: 5, sell: 2, total: 42,
-      priceTarget: { low: 380.00, mean: 460.00, high: 520.00 },
+      buy: 38,
+      hold: 10,
+      sell: 1,
+      priceTargetLow: 400.0,
+      priceTargetMean: 480.0,
+      priceTargetHigh: 540.0,
+      analystCount: 49,
     },
     earningsHistory: [
-      { quarter: "Q1 2026", actual: 3.22, estimate: 3.10, surprisePercent: 3.87 },
-      { quarter: "Q4 2025", actual: 3.10, estimate: 2.95, surprisePercent: 5.08 },
-      { quarter: "Q3 2025", actual: 2.95, estimate: 2.82, surprisePercent: 4.61 },
-      { quarter: "Q2 2025", actual: 2.69, estimate: 2.55, surprisePercent: 5.49 },
+      { quarter: "Q1 2026", actual: 3.12, estimate: 2.98, surprise: 4.7 },
+      { quarter: "Q4 2025", actual: 3.0, estimate: 2.78, surprise: 7.91 },
+      { quarter: "Q3 2025", actual: 2.95, estimate: 2.81, surprise: 4.98 },
+      { quarter: "Q2 2025", actual: 2.69, estimate: 2.55, surprise: 5.49 },
     ],
-    nextEarningsDate: "2026-07-22",
-    news: [
+    // Backward-compatible aliases
+    averageCost: 380.5,
+    previousClose: 440.1,
+    gainLossDollar: 2494.8,
+    costBasis: 15220.0,
+    totalReturn: 2494.8,
+    totalReturnPercent: 16.39,
+    peRatio: 36.2,
+    dividendYield: 0.72,
+    analystTargetPrice: 480.0,
+    relatedNews: [
       {
-        headline: "Azure Cloud Revenue Surges on Enterprise AI Demand",
-        publisher: "CNBC",
-        timestamp: "2026-04-16T10:15:00Z",
-        aiSummary: "Microsoft reported Azure revenue growth of 29%, fueled by enterprise adoption of AI workloads.",
-      },
-      {
-        headline: "Microsoft Copilot Reaches 100 Million Users",
-        publisher: "The Verge",
-        timestamp: "2026-04-15T08:45:00Z",
-        aiSummary: "Microsoft's AI assistant crossed a major adoption milestone, with strong traction in enterprise Office suites.",
-      },
-      {
-        headline: "Gaming Division Reports Mixed Results",
-        publisher: "Bloomberg",
-        timestamp: "2026-04-13T16:30:00Z",
-        aiSummary: "Xbox hardware sales declined but Game Pass subscriptions grew 22%, reflecting the industry shift to services.",
-      },
-    ],
-    chartData30d: [
-      395.00, 398.50, 397.20, 400.00, 403.30, 405.80, 402.10, 400.70,
-      399.00, 397.50, 400.80, 403.20, 405.50, 403.90, 402.30, 400.00,
-      401.80, 404.50, 406.20, 408.00, 405.80, 403.50, 404.90, 407.80,
-      409.50, 410.20, 408.00, 406.20, 405.17, 415.56,
-    ],
-  },
-  {
-    symbol: "VTI",
-    name: "Vanguard Total Stock Market ETF",
-    currentPrice: 242.15,
-    todayChangeDollars: 6.05,
-    todayChangePercent: 2.50,
-    marketCap: 380_000_000_000,
-    peRatio: null,
-    psRatio: null,
-    dividendYield: 0.0135,
-    epsTTM: null,
-    revenueGrowthYoY: null,
-    fiftyTwoWeekLow: 198.00,
-    fiftyTwoWeekHigh: 248.00,
-    beta: 1.0,
-    analystRatings: {
-      buy: 0, hold: 0, sell: 0, total: 0,
-      priceTarget: { low: 0, mean: 0, high: 0 },
-    },
-    earningsHistory: [],
-    nextEarningsDate: "",
-    news: [
-      {
-        headline: "S&P 500 Hits New All-Time High on Tech Rally",
-        publisher: "AP",
-        timestamp: "2026-04-16T06:30:00Z",
-        aiSummary: "The S&P 500 reached a record level, led by semiconductor and cloud computing stocks.",
-      },
-      {
-        headline: "Passive Investing Continues to Dominate Fund Flows",
+        id: "msft-1",
+        title: "Microsoft Azure Revenue Grows 29% as AI Workloads Expand",
         publisher: "Financial Times",
-        timestamp: "2026-04-14T09:30:00Z",
-        aiSummary: "Index funds attracted $85 billion in Q1, while active managers saw $12 billion in outflows.",
+        ts: "2026-04-13T08:45:00Z",
+        summary:
+          "Microsoft's cloud division reported strong growth driven by enterprise adoption of AI services through Azure OpenAI.",
       },
-    ],
-    chartData30d: [
-      228.00, 229.20, 230.10, 229.50, 231.00, 232.30, 231.80, 233.00,
-      234.20, 233.50, 232.80, 233.60, 234.40, 235.00, 234.50, 233.80,
-      234.90, 235.50, 236.00, 235.40, 234.80, 235.20, 235.80, 236.50,
-      235.90, 235.00, 234.50, 236.10, 236.10, 242.15,
     ],
   },
   {
-    symbol: "BND",
-    name: "Vanguard Total Bond Market ETF",
-    currentPrice: 72.45,
-    todayChangeDollars: 0.10,
-    todayChangePercent: 0.14,
-    marketCap: 110_000_000_000,
-    peRatio: null,
-    psRatio: null,
-    dividendYield: 0.0340,
-    epsTTM: null,
-    revenueGrowthYoY: null,
-    fiftyTwoWeekLow: 68.50,
-    fiftyTwoWeekHigh: 75.20,
-    beta: 0.05,
-    analystRatings: {
-      buy: 0, hold: 0, sell: 0, total: 0,
-      priceTarget: { low: 0, mean: 0, high: 0 },
+    symbol: "AMZN",
+    name: "Amazon.com Inc.",
+    shares: 75,
+    avgCost: 178.3,
+    currentPrice: 189.42,
+    marketValue: 14206.5,
+    gainLoss: 834.0,
+    gainLossPercent: 6.24,
+    direction: "up",
+    sector: "Consumer Discretionary",
+    allocation: 14.26,
+    priceHistory: generatePriceHistory(189.42, 0.022),
+    fundamentals: {
+      marketCap: 1970000000000,
+      peRatio: 58.4,
+      psRatio: 3.3,
+      dividendYield: null,
+      epsTTM: 3.24,
+      revenueGrowthYoY: 12.5,
+      week52Low: 151.61,
+      week52High: 201.2,
+      beta: 1.15,
     },
-    earningsHistory: [],
-    nextEarningsDate: "",
-    news: [
-      {
-        headline: "Bond Market Sees Renewed Interest as Rate Cuts Expected",
-        publisher: "Financial Times",
-        timestamp: "2026-04-16T08:00:00Z",
-        aiSummary: "Treasury yields fell as investors priced in rate cuts, boosting bond ETFs like BND.",
-      },
-      {
-        headline: "Fed Holds Rates Steady, Signals Patience",
-        publisher: "Reuters",
-        timestamp: "2026-04-14T15:30:00Z",
-        aiSummary: "The Federal Reserve kept rates unchanged and reiterated a data-dependent approach to future cuts.",
-      },
-    ],
-    chartData30d: [
-      72.10, 72.00, 71.90, 72.05, 72.20, 72.15, 72.00, 71.95,
-      72.10, 72.25, 72.30, 72.20, 72.15, 72.10, 72.00, 71.95,
-      72.05, 72.15, 72.20, 72.30, 72.25, 72.10, 72.15, 72.20,
-      72.30, 72.25, 72.35, 72.40, 72.35, 72.45,
-    ],
-  },
-  {
-    symbol: "JNJ",
-    name: "Johnson & Johnson",
-    currentPrice: 156.89,
-    todayChangeDollars: -0.22,
-    todayChangePercent: -0.14,
-    marketCap: 378_000_000_000,
-    peRatio: 15.7,
-    psRatio: 4.1,
-    dividendYield: 0.0318,
-    epsTTM: 9.99,
-    revenueGrowthYoY: 0.031,
-    fiftyTwoWeekLow: 140.50,
-    fiftyTwoWeekHigh: 168.85,
-    beta: 0.55,
     analystRatings: {
-      buy: 10, hold: 12, sell: 3, total: 25,
-      priceTarget: { low: 148.00, mean: 172.00, high: 190.00 },
+      buy: 52,
+      hold: 6,
+      sell: 1,
+      priceTargetLow: 165.0,
+      priceTargetMean: 220.0,
+      priceTargetHigh: 260.0,
+      analystCount: 59,
     },
     earningsHistory: [
-      { quarter: "Q1 2026", actual: 2.77, estimate: 2.68, surprisePercent: 3.36 },
-      { quarter: "Q4 2025", actual: 2.54, estimate: 2.52, surprisePercent: 0.79 },
-      { quarter: "Q3 2025", actual: 2.42, estimate: 2.48, surprisePercent: -2.42 },
-      { quarter: "Q2 2025", actual: 2.82, estimate: 2.71, surprisePercent: 4.06 },
+      { quarter: "Q1 2026", actual: 0.98, estimate: 0.85, surprise: 15.29 },
+      { quarter: "Q4 2025", actual: 1.29, estimate: 1.15, surprise: 12.17 },
+      { quarter: "Q3 2025", actual: 0.94, estimate: 0.91, surprise: 3.3 },
+      { quarter: "Q2 2025", actual: 1.26, estimate: 1.03, surprise: 22.33 },
     ],
-    nextEarningsDate: "2026-07-15",
-    news: [
+    // Backward-compatible aliases
+    averageCost: 178.3,
+    previousClose: 188.1,
+    gainLossDollar: 834.0,
+    costBasis: 13372.5,
+    totalReturn: 834.0,
+    totalReturnPercent: 6.24,
+    peRatio: 58.4,
+    dividendYield: null,
+    analystTargetPrice: 220.0,
+    relatedNews: [
       {
-        headline: "J&J Oncology Pipeline Shows Promising Trial Results",
-        publisher: "Reuters",
-        timestamp: "2026-04-15T07:30:00Z",
-        aiSummary: "Phase 3 trials for J&J's new cancer treatment showed significant improvement in progression-free survival.",
+        id: "amzn-1",
+        title: "Amazon AWS Launches New AI Infrastructure Tier",
+        publisher: "TechCrunch",
+        ts: "2026-04-11T13:20:00Z",
+        summary:
+          "Amazon Web Services unveiled a new AI-optimized infrastructure tier with custom chips designed to reduce inference costs for enterprise customers.",
       },
-      {
-        headline: "MedTech Division Drives Steady Growth",
-        publisher: "Barron's",
-        timestamp: "2026-04-13T14:00:00Z",
-        aiSummary: "J&J's medical devices segment grew 6.2% in Q1, led by robotic surgery platform adoption.",
-      },
-    ],
-    chartData30d: [
-      158.00, 157.50, 157.80, 158.20, 157.00, 156.50, 157.20, 157.80,
-      158.50, 158.00, 157.30, 156.80, 157.50, 158.00, 157.70, 157.20,
-      156.80, 157.40, 157.00, 156.50, 157.10, 157.60, 157.00, 156.70,
-      156.30, 156.80, 157.20, 156.90, 157.11, 156.89,
     ],
   },
   {
-    symbol: "VXUS",
-    name: "Vanguard Total International Stock ETF",
-    currentPrice: 59.61,
-    todayChangeDollars: 1.79,
-    todayChangePercent: 3.00,
-    marketCap: 75_000_000_000,
-    peRatio: null,
-    psRatio: null,
-    dividendYield: 0.0310,
-    epsTTM: null,
-    revenueGrowthYoY: null,
-    fiftyTwoWeekLow: 48.50,
-    fiftyTwoWeekHigh: 62.00,
-    beta: 0.85,
-    analystRatings: {
-      buy: 0, hold: 0, sell: 0, total: 0,
-      priceTarget: { low: 0, mean: 0, high: 0 },
+    symbol: "BRK.B",
+    name: "Berkshire Hathaway Inc. Class B",
+    shares: 10,
+    avgCost: 455.0,
+    currentPrice: 462.72,
+    marketValue: 4627.15,
+    gainLoss: 77.2,
+    gainLossPercent: 1.7,
+    direction: "up",
+    sector: "Financial Services",
+    allocation: 4.64,
+    priceHistory: generatePriceHistory(462.72, 0.01),
+    fundamentals: {
+      marketCap: 996000000000,
+      peRatio: 11.2,
+      psRatio: 2.8,
+      dividendYield: null,
+      epsTTM: 41.31,
+      revenueGrowthYoY: 6.8,
+      week52Low: 398.5,
+      week52High: 478.9,
+      beta: 0.55,
     },
-    earningsHistory: [],
-    nextEarningsDate: "",
-    news: [
-      {
-        headline: "International Markets Rally on Weak Dollar",
-        publisher: "Reuters",
-        timestamp: "2026-04-16T07:00:00Z",
-        aiSummary: "Emerging market equities surged as the US dollar weakened, boosting returns for international stock ETFs.",
-      },
-    ],
-    chartData30d: [
-      55.00, 55.40, 55.80, 55.60, 56.10, 56.50, 56.30, 56.80,
-      57.20, 56.90, 56.60, 57.00, 57.40, 57.80, 57.50, 57.20,
-      57.60, 58.00, 57.80, 57.50, 57.90, 58.20, 58.00, 58.40,
-      58.10, 57.80, 58.20, 58.50, 57.82, 59.61,
-    ],
-  },
-  {
-    symbol: "SCHD",
-    name: "Schwab U.S. Dividend Equity ETF",
-    currentPrice: 80.82,
-    todayChangeDollars: 6.92,
-    todayChangePercent: 8.57,
-    marketCap: 55_000_000_000,
-    peRatio: null,
-    psRatio: null,
-    dividendYield: 0.0352,
-    epsTTM: null,
-    revenueGrowthYoY: null,
-    fiftyTwoWeekLow: 68.00,
-    fiftyTwoWeekHigh: 82.50,
-    beta: 0.78,
     analystRatings: {
-      buy: 0, hold: 0, sell: 0, total: 0,
-      priceTarget: { low: 0, mean: 0, high: 0 },
-    },
-    earningsHistory: [],
-    nextEarningsDate: "",
-    news: [
-      {
-        headline: "Dividend Stocks Outperform as Investors Seek Income",
-        publisher: "MarketWatch",
-        timestamp: "2026-04-16T09:00:00Z",
-        aiSummary: "Dividend-focused ETFs saw record inflows as investors rotated away from growth stocks into income-generating assets.",
-      },
-    ],
-    chartData30d: [
-      72.00, 72.50, 73.00, 72.80, 73.50, 74.00, 73.60, 74.20,
-      74.80, 74.50, 74.00, 74.50, 75.00, 75.40, 75.00, 74.60,
-      75.20, 75.80, 75.50, 75.00, 75.60, 76.00, 75.80, 76.20,
-      75.80, 75.40, 75.80, 76.10, 73.90, 80.82,
-    ],
-  },
-  {
-    symbol: "GOOGL",
-    name: "Alphabet Inc.",
-    currentPrice: 175.98,
-    todayChangeDollars: 0.88,
-    todayChangePercent: 0.50,
-    marketCap: 2_170_000_000_000,
-    peRatio: 25.0,
-    psRatio: 6.7,
-    dividendYield: 0.0045,
-    epsTTM: 7.04,
-    revenueGrowthYoY: 0.112,
-    fiftyTwoWeekLow: 132.00,
-    fiftyTwoWeekHigh: 191.75,
-    beta: 1.06,
-    analystRatings: {
-      buy: 32, hold: 8, sell: 2, total: 42,
-      priceTarget: { low: 155.00, mean: 200.00, high: 230.00 },
+      buy: 6,
+      hold: 4,
+      sell: 0,
+      priceTargetLow: 430.0,
+      priceTargetMean: 490.0,
+      priceTargetHigh: 530.0,
+      analystCount: 10,
     },
     earningsHistory: [
-      { quarter: "Q1 2026", actual: 2.01, estimate: 1.89, surprisePercent: 6.35 },
-      { quarter: "Q4 2025", actual: 2.12, estimate: 1.98, surprisePercent: 7.07 },
-      { quarter: "Q3 2025", actual: 1.85, estimate: 1.84, surprisePercent: 0.54 },
-      { quarter: "Q2 2025", actual: 1.89, estimate: 1.85, surprisePercent: 2.16 },
+      { quarter: "Q1 2026", actual: 10.42, estimate: 9.8, surprise: 6.33 },
+      { quarter: "Q4 2025", actual: 11.85, estimate: 10.5, surprise: 12.86 },
+      { quarter: "Q3 2025", actual: 8.97, estimate: 8.2, surprise: 9.39 },
+      { quarter: "Q2 2025", actual: 9.15, estimate: 8.95, surprise: 2.23 },
     ],
-    nextEarningsDate: "2026-07-29",
-    news: [
+    // Backward-compatible aliases
+    averageCost: 455.0,
+    previousClose: 461.3,
+    gainLossDollar: 77.2,
+    costBasis: 4550.0,
+    totalReturn: 77.2,
+    totalReturnPercent: 1.7,
+    peRatio: 11.2,
+    dividendYield: null,
+    analystTargetPrice: 490.0,
+    relatedNews: [
       {
-        headline: "Google Cloud Posts Strong Growth Amid AI Race",
-        publisher: "Reuters",
-        timestamp: "2026-04-16T08:00:00Z",
-        aiSummary: "Google Cloud revenue grew 26% as enterprises adopted Gemini-powered analytics and infrastructure.",
-      },
-      {
-        headline: "YouTube Ad Revenue Tops Expectations",
-        publisher: "Bloomberg",
-        timestamp: "2026-04-15T13:00:00Z",
-        aiSummary: "YouTube generated $9.8B in ad revenue for Q1, driven by connected TV and Shorts monetization.",
-      },
-      {
-        headline: "DOJ Antitrust Trial Enters Final Phase",
+        id: "brk-1",
+        title: "Berkshire Hathaway Cash Reserves Hit $190 Billion",
         publisher: "Wall Street Journal",
-        timestamp: "2026-04-12T10:00:00Z",
-        aiSummary: "The Department of Justice's search monopoly case against Google is nearing a verdict after months of testimony.",
+        ts: "2026-04-09T07:30:00Z",
+        summary:
+          "Warren Buffett's Berkshire Hathaway reported record cash holdings, sparking debate about whether the conglomerate sees limited value in current market conditions.",
       },
-    ],
-    chartData30d: [
-      168.50, 169.20, 170.00, 169.50, 171.00, 172.20, 171.80, 172.50,
-      173.00, 172.30, 171.80, 172.60, 173.20, 173.80, 173.00, 172.50,
-      173.30, 174.00, 173.50, 172.80, 173.60, 174.20, 173.90, 174.50,
-      174.00, 173.50, 173.80, 174.10, 175.10, 175.98,
     ],
   },
 ];
 
-/** Find research data by ticker symbol (case-insensitive). */
-export function getResearchBySymbol(symbol: string): ResearchData | undefined {
-  return researchData.find(
-    (r) => r.symbol.toUpperCase() === symbol.toUpperCase()
-  );
+// ─── Transactions ───
+
+export const transactions: Transaction[] = [
+  {
+    id: "txn-001",
+    date: "2026-03-15",
+    type: "buy",
+    symbol: "NVDA",
+    shares: 5,
+    price: 845.2,
+    total: 4226.0,
+    status: "completed",
+  },
+  {
+    id: "txn-002",
+    date: "2026-03-01",
+    type: "buy",
+    symbol: "AAPL",
+    shares: 10,
+    price: 208.5,
+    total: 2085.0,
+    status: "completed",
+  },
+  {
+    id: "txn-003",
+    date: "2026-02-14",
+    type: "buy",
+    symbol: "MSFT",
+    shares: 15,
+    price: 415.3,
+    total: 6229.5,
+    status: "completed",
+  },
+  {
+    id: "txn-004",
+    date: "2026-01-22",
+    type: "buy",
+    symbol: "AMZN",
+    shares: 25,
+    price: 176.8,
+    total: 4420.0,
+    status: "completed",
+  },
+  {
+    id: "txn-005",
+    date: "2025-12-10",
+    type: "buy",
+    symbol: "BRK.B",
+    shares: 10,
+    price: 455.0,
+    total: 4550.0,
+    status: "completed",
+  },
+  {
+    id: "txn-006",
+    date: "2025-11-28",
+    type: "buy",
+    symbol: "AAPL",
+    shares: 20,
+    price: 152.4,
+    total: 3048.0,
+    status: "completed",
+  },
+  {
+    id: "txn-007",
+    date: "2025-10-05",
+    type: "buy",
+    symbol: "NVDA",
+    shares: 20,
+    price: 580.0,
+    total: 11600.0,
+    status: "completed",
+  },
+];
+
+// ─── Goal progress ───
+
+export const goalProgress: GoalProgress = {
+  target: 120000,
+  current: 99656.95,
+  projectedDate: "2028-06-15",
+  onTrack: true,
+  confidencePercent: 72,
+  percentComplete: 83.05,
+};
+
+// ─── Backward-compatible portfolioSummary export ───
+
+export interface PortfolioSummary {
+  totalValue: number;
+  totalCostBasis: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+  annualGoal: number;
+  goalLabel: string;
+  benchmarkReturn: number;
+  benchmarkLabel: string;
 }
 
-/** Format a number as compact USD (e.g. $2.78T, $378B). */
-export function formatCompactCurrency(value: number): string {
-  if (value >= 1_000_000_000_000) {
-    return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
-  }
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(0)}B`;
-  }
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(0)}M`;
-  }
-  return `$${value.toLocaleString("en-US")}`;
+export const portfolioSummary: PortfolioSummary = {
+  totalValue: portfolio.totalValue,
+  totalCostBasis: portfolio.totalValue - portfolio.totalGainLoss,
+  totalGainLoss: portfolio.totalGainLoss,
+  totalGainLossPercent: portfolio.totalGainLossPercent,
+  annualGoal: 8.0,
+  goalLabel: "8% annual growth",
+  benchmarkReturn: 11.2,
+  benchmarkLabel: "S&P 500 YTD",
+};
+
+// ─── Backward-compatible formatting re-exports ───
+
+export { formatCurrency, formatPercent, formatSignedCurrency } from "@/lib/format";
+
+// ─── Backward-compatible chart data ───
+
+export interface ChartDataPoint {
+  date: string;
+  close: number;
+  change: number;
+  changePercent: number;
 }
 
-/** Format a number as USD currency. */
-export function formatUSD(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+export function getChartData(range: "1W" | "1M" | "3M" | "6M" | "1Y" | "ALL"): ChartDataPoint[] {
+  const pointCounts: Record<string, number> = {
+    "1W": 7,
+    "1M": 22,
+    "3M": 63,
+    "6M": 126,
+    "1Y": 252,
+    ALL: 504,
+  };
+  const count = pointCounts[range];
+  const baseValue = portfolioSummary.totalCostBasis;
+  const endValue = portfolioSummary.totalValue;
+  const step = (endValue - baseValue) / count;
+
+  const data: ChartDataPoint[] = [];
+  const startDate = new Date("2026-04-16");
+
+  for (let i = 0; i < count; i++) {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() - (count - i));
+    const noise = Math.sin(i * 3.7) * 120 + Math.cos(i * 2.3) * 80;
+    const value = baseValue + step * i + noise;
+    const roundedValue = Math.round(value * 100) / 100;
+    const prevValue = i > 0 ? data[i - 1].close : roundedValue;
+    const change = Math.round((roundedValue - prevValue) * 100) / 100;
+    const changePercent =
+      prevValue !== 0 ? Math.round((change / prevValue) * 10000) / 100 : 0;
+    data.push({ date: date.toISOString().split("T")[0], close: roundedValue, change, changePercent });
+  }
+
+  return data;
 }
 
-/** Format a decimal as a percentage string (e.g. 0.054 -> "5.40%"). */
-export function formatPercent(value: number): string {
-  return `${(value * 100).toFixed(2)}%`;
-}
+// ─── Journal entries ───
+
+export const journalEntries: JournalEntry[] = [
+  {
+    id: "journal-001",
+    date: "2026-03-15",
+    symbol: "NVDA",
+    action: "buy",
+    quantity: 5,
+    price: 845.2,
+    rationale:
+      "Strong data center revenue growth and expanding AI market. Added to existing position after reviewing Q4 earnings beat.",
+    regretRehearsal:
+      "If NVDA drops 20%, my total loss on this purchase would be about $845. I can absorb this given my 5-10 year horizon and the position is 22% of my portfolio which is already high.",
+    calibration:
+      "I am 65% confident NVDA will be above $900 within 6 months. The AI spending cycle could slow, but enterprise demand appears durable.",
+    reflection:
+      "I noticed I felt excited about the earnings beat, which made me want to buy more. I paused and reviewed my allocation limits before proceeding.",
+  },
+  {
+    id: "journal-002",
+    date: "2026-03-01",
+    symbol: "AAPL",
+    action: "buy",
+    quantity: 10,
+    price: 208.5,
+    rationale:
+      "Dollar-cost averaging into a core holding. Apple's services revenue continues to grow and provides recurring income.",
+    regretRehearsal:
+      "If AAPL drops 15%, I would lose about $313 on this batch. Apple has recovered from every major drawdown historically, and services revenue provides a floor.",
+    calibration:
+      "I am 70% confident AAPL will be above $220 within 12 months. The iPhone upgrade cycle and services growth support this.",
+    reflection:
+      "This was a planned purchase, not reactive. I feel comfortable with the position size at about 11% of portfolio.",
+  },
+  {
+    id: "journal-003",
+    date: "2026-02-14",
+    symbol: "MSFT",
+    action: "buy",
+    quantity: 15,
+    price: 415.3,
+    rationale:
+      "Azure cloud growth and Copilot AI integration provide strong tailwinds. Adding to position while below consensus price target.",
+    regretRehearsal:
+      "If MSFT drops 10%, I would lose about $623 on these shares. Microsoft's diversified revenue streams and enterprise relationships reduce single-product risk.",
+    calibration:
+      "I am 75% confident MSFT will be above $450 within 6 months. Cloud spending trends and AI integration support this view.",
+    reflection:
+      "I researched multiple sources before buying. The P/E ratio of 36 is high but justified by growth rate. I should monitor if growth decelerates.",
+  },
+];

@@ -1,62 +1,118 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
-interface FieldError {
+export interface FieldError {
+  /** The id of the form field this error belongs to */
   fieldId: string;
-  fieldLabel: string;
+  /** Human-readable error message */
   message: string;
 }
 
 interface ErrorSummaryProps {
+  /** List of field-specific errors */
   errors: FieldError[];
+  /** Heading text for the error summary */
+  heading?: string;
 }
 
 /**
- * Form error summary per § 1.1.
- * - role="alert" so VoiceOver announces immediately
- * - Auto-focuses on render
- * - Each error links to the failing field
- * - Names the specific field: "Email is required" not "Form error"
- * - Errors stay on screen until corrected — never auto-dismiss
+ * ErrorSummary — renders a grouped error summary that auto-focuses on mount.
+ *
+ * Accessibility contract:
+ * - role="alert" triggers immediate screen reader announcement
+ * - Auto-focuses the summary container on mount so SR users hear errors
+ * - Each error is a link that calls .focus() on the associated form field
+ * - Minimum 44px touch targets for error links
+ * - Visible focus indicators on all interactive elements
+ * - Uses aria-describedby pattern: field errors also appear inline (not handled here)
  */
-export function ErrorSummary({ errors }: ErrorSummaryProps) {
-  const ref = useRef<HTMLDivElement>(null);
+export default function ErrorSummary({
+  errors,
+  heading = "There are errors in this form",
+}: ErrorSummaryProps) {
+  const summaryRef = useRef<HTMLDivElement>(null);
 
-  // Auto-focus on mount so screen reader announces immediately
+  /* Auto-focus the summary on mount so screen readers announce it immediately */
   useEffect(() => {
-    ref.current?.focus();
+    if (errors.length > 0 && summaryRef.current) {
+      summaryRef.current.focus();
+    }
   }, [errors]);
 
   if (errors.length === 0) return null;
 
+  /**
+   * Focus the field associated with the error.
+   * Uses document.getElementById to find the field and calls .focus().
+   */
+  function handleErrorClick(
+    e: React.MouseEvent | React.KeyboardEvent,
+    fieldId: string
+  ) {
+    e.preventDefault();
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.focus();
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
   return (
     <div
-      ref={ref}
-      /* a11y: role="alert" forces immediate announcement by screen readers */
+      ref={summaryRef}
+      /* a11y: role="alert" causes screen readers to immediately announce the content when it appears */
       role="alert"
-      /* a11y: tabindex="-1" allows programmatic focus */
+      /* a11y: tabIndex="-1" allows programmatic focus without adding to tab order */
       tabIndex={-1}
-      className="rounded-xl border border-loss bg-loss/5 p-4 mb-6 outline-none focus-visible:outline-2 focus-visible:outline-focus-ring"
+      /* a11y: aria-labelledby points to the heading for the alert landmark */
+      aria-labelledby="error-summary-heading"
+      className={[
+        "rounded-lg border-2 border-feedback-error",
+        "bg-feedback-error/5 p-4 mb-6",
+        "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+      ].join(" ")}
     >
-      <h2 className="text-base font-semibold text-loss mb-2">
-        {errors.length === 1
-          ? "There is 1 error in this form"
-          : `There are ${errors.length} errors in this form`}
+      <h2
+        id="error-summary-heading"
+        className="text-base font-semibold text-feedback-error mb-2"
+      >
+        {heading}
       </h2>
-      <ul className="space-y-1">
+
+      <p className="text-sm text-secondary mb-3">
+        {errors.length === 1
+          ? "Please correct the following error:"
+          : `Please correct the following ${errors.length} errors:`}
+      </p>
+
+      <ul className="list-none p-0 m-0 space-y-1">
         {errors.map((error) => (
           <li key={error.fieldId}>
             <a
               href={`#${error.fieldId}`}
-              onClick={(e) => {
-                e.preventDefault();
-                const field = document.getElementById(error.fieldId);
-                field?.focus();
+              onClick={(e) => handleErrorClick(e, error.fieldId)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  handleErrorClick(e, error.fieldId);
+                }
               }}
-              className="text-sm text-loss underline hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring rounded"
+              className={[
+                "inline-flex items-center min-h-[44px] px-2",
+                "text-sm text-feedback-error underline underline-offset-2",
+                "hover:text-action-destructive-hover",
+                "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+                "rounded",
+              ].join(" ")}
             >
-              {error.fieldLabel}: {error.message}
+              <span
+                /* a11y: aria-hidden="true" prevents decorative bullet from being read */
+                aria-hidden="true"
+                className="mr-2 text-feedback-error"
+              >
+                {"\u2022"}
+              </span>
+              {error.message}
             </a>
           </li>
         ))}

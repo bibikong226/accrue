@@ -1,120 +1,199 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useId } from "react";
 
 interface DialogProps {
+  /** Whether the dialog is open */
   open: boolean;
+  /** Called when the dialog should close (Escape, overlay click, close button) */
   onClose: () => void;
+  /** Accessible title displayed in the dialog header */
   title: string;
+  /** Optional description text */
+  description?: string;
   children: React.ReactNode;
-  preventClose?: boolean;
 }
 
 /**
- * Modal dialog with focus management per § 12.
- * - Saves invoking element and restores focus on close
- * - Traps focus inside while open
- * - Escape closes (unless preventClose)
- * - aria-modal="true", aria-labelledby points to heading
+ * Dialog — accessible modal dialog with focus trap.
+ *
+ * Accessibility contract:
+ * - aria-modal="true" prevents screen readers from reading behind the dialog
+ * - aria-labelledby points to the dialog title
+ * - aria-describedby points to optional description
+ * - Focus is trapped within the dialog while open
+ * - Escape key closes the dialog
+ * - Focus returns to the element that opened the dialog on close
+ * - Overlay click closes the dialog
+ * - Close button has min 44x44px target
  */
-export function Dialog({ open, onClose, title, children, preventClose = false }: DialogProps) {
+export default function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+}: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const invokerRef = useRef<Element | null>(null);
-  const titleId = `dialog-title-${title.replace(/\s+/g, "-").toLowerCase()}`;
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const uniqueId = useId();
+  const titleId = `dialog-title-${uniqueId}`;
+  const descriptionId = `dialog-desc-${uniqueId}`;
 
-  // Save invoker on open
+  /* Store the element that had focus when dialog opened */
   useEffect(() => {
     if (open) {
-      invokerRef.current = document.activeElement;
-      // Focus first focusable element inside dialog
-      requestAnimationFrame(() => {
-        const focusable = dialogRef.current?.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        focusable?.focus();
-      });
+      previousFocusRef.current = document.activeElement as HTMLElement;
     }
   }, [open]);
 
-  // Restore focus on close
+  /* Focus the dialog container when opened; restore focus when closed */
   useEffect(() => {
-    if (!open && invokerRef.current instanceof HTMLElement) {
-      invokerRef.current.focus();
+    if (open && dialogRef.current) {
+      dialogRef.current.focus();
     }
-  }, [open]);
 
-  // Escape to close
-  useEffect(() => {
-    if (!open || preventClose) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
+    return () => {
+      if (!open && previousFocusRef.current) {
+        previousFocusRef.current.focus();
+        previousFocusRef.current = null;
       }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, preventClose, onClose]);
+    };
+  }, [open]);
 
-  // Focus trap
+  /* Prevent body scroll while dialog is open */
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  /* Focus trap: Tab and Shift+Tab cycle within the dialog */
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key !== "Tab" || !dialogRef.current) return;
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
 
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusableSelectors = [
+          'a[href]',
+          'button:not([disabled])',
+          'input:not([disabled])',
+          'select:not([disabled])',
+          'textarea:not([disabled])',
+          '[tabindex]:not([tabindex="-1"])',
+        ].join(", ");
 
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last?.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first?.focus();
+        const focusableElements =
+          dialogRef.current.querySelectorAll<HTMLElement>(focusableSelectors);
+        const firstFocusable = focusableElements[0];
+        const lastFocusable = focusableElements[focusableElements.length - 1];
+
+        if (!firstFocusable) return;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstFocusable) {
+            e.preventDefault();
+            lastFocusable.focus();
+          }
+        } else {
+          if (document.activeElement === lastFocusable) {
+            e.preventDefault();
+            firstFocusable.focus();
+          }
+        }
       }
     },
-    []
+    [onClose]
   );
 
   if (!open) return null;
 
   return (
-    <>
-      {/* Backdrop */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onKeyDown={handleKeyDown}
+    >
+      {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/50 z-50"
-        onClick={preventClose ? undefined : onClose}
+        className="absolute inset-0 bg-primary/50"
+        /* a11y: aria-hidden prevents the decorative overlay from being announced */
         aria-hidden="true"
+        onClick={onClose}
       />
-      {/* Dialog */}
+
+      {/* Dialog panel */}
       <div
         ref={dialogRef}
-        /* a11y: role="dialog" identifies this as a modal dialog */
+        /* a11y: role="dialog" identifies this as a dialog landmark for assistive technology */
         role="dialog"
-        /* a11y: aria-modal="true" tells screen readers this traps focus */
+        /* a11y: aria-modal="true" tells screen readers content behind the dialog is inert */
         aria-modal="true"
-        /* a11y: aria-labelledby points to the dialog heading */
+        /* a11y: aria-labelledby references the title element so screen readers announce the dialog purpose */
         aria-labelledby={titleId}
-        onKeyDown={handleKeyDown}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        /* a11y: aria-describedby references optional description for additional context */
+        aria-describedby={description ? descriptionId : undefined}
+        tabIndex={-1}
+        className={[
+          "relative z-10 w-full max-w-lg mx-4",
+          "bg-surface-raised rounded-xl shadow-xl",
+          "p-6",
+          "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+        ].join(" ")}
       >
-        <div className="bg-surface-raised rounded-2xl shadow-lg max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
-          <h2 id={titleId} className="text-xl font-semibold text-primary mb-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <h2 id={titleId} className="text-lg font-semibold text-primary">
             {title}
           </h2>
-          {children}
-          {!preventClose && (
-            <button
-              onClick={onClose}
-              className="mt-4 text-sm text-secondary hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring rounded min-h-[44px] min-w-[44px] px-3 py-2"
+          <button
+            type="button"
+            onClick={onClose}
+            /* a11y: aria-label provides accessible name since the button only contains an icon */
+            aria-label="Close dialog"
+            className={[
+              "min-h-[44px] min-w-[44px]",
+              "inline-flex items-center justify-center",
+              "rounded-lg text-secondary",
+              "hover:bg-surface-sunken",
+              "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+            ].join(" ")}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              /* a11y: aria-hidden="true" since the button already has an aria-label */
+              aria-hidden="true"
             >
-              Close
-            </button>
-          )}
+              <path
+                d="M15 5L5 15M5 5l10 10"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </div>
+
+        {/* Description */}
+        {description && (
+          <p id={descriptionId} className="text-sm text-secondary mb-4">
+            {description}
+          </p>
+        )}
+
+        {/* Content */}
+        <div>{children}</div>
       </div>
-    </>
+    </div>
   );
 }

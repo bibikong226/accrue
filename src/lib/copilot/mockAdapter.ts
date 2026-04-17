@@ -1,86 +1,105 @@
+/**
+ * MockCopilotAdapter -- returns hard-coded responses from copilotFixtures.ts.
+ * Used during prototype development (CLAUDE.md A4).
+ *
+ * The mock adapter still runs the validation pipeline against every response
+ * so the validator is exercised in development.
+ */
+
 import type {
   CopilotAdapter,
-  CopilotContext,
   CopilotResponse,
+  CopilotContext,
   PageType,
   ValidationResult,
 } from "./types";
-import { validateResponse, REFUSAL_RESPONSE } from "./validator";
 import {
   proactiveFixtures,
-  reactiveFixtures,
+  matchReactiveFixture,
+  getFallbackResponse,
 } from "@/data/copilotFixtures";
+import { validateCopilotResponse, getRefusalResponse } from "./validator";
 
 /**
- * MockCopilotAdapter per § A4.
- * Returns hand-authored fixtures from copilotFixtures.ts.
- * All responses pass through the validator — exercised in dev.
- * Simulates 200ms latency for realistic UX.
+ * Simulated network latency in milliseconds.
  */
+const MOCK_LATENCY_MS = 200;
+
+/**
+ * Wait for the simulated latency period.
+ */
+function simulateLatency(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
+}
+
 export class MockCopilotAdapter implements CopilotAdapter {
+  /**
+   * Generate a response to a user query.
+   * Matches against reactive fixture patterns, falls back to a generic response.
+   * Every response passes through the validation pipeline.
+   */
   async generateResponse(
     query: string,
     context: CopilotContext
   ): Promise<CopilotResponse> {
-    // Simulate network latency
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await simulateLatency();
 
-    const normalizedQuery = query.toLowerCase().trim();
+    // Try to match a reactive fixture
+    let response = matchReactiveFixture(query);
 
-    // Find best matching fixture
-    const fixture = reactiveFixtures.find(
-      (f) =>
-        f.triggerQuery &&
-        normalizedQuery.includes(f.triggerQuery.toLowerCase())
-    );
-
-    const response = fixture ?? {
-      id: `mock-${Date.now()}`,
-      content:
-        "I can help explain your portfolio, define financial terms, or flag potential concerns about trades. What would you like to know?",
-      confidence: "high" as const,
-      sources: [],
-      type: "reactive" as const,
-    };
-
-    // Validate even mock responses per spec
-    const validation = this.validateResponse(response, context);
-    if (validation.severity === "critical") {
-      return REFUSAL_RESPONSE;
+    // Fall back to generic response
+    if (!response) {
+      response = getFallbackResponse();
     }
 
-    // Downgrade if needed
-    if (validation.severity === "downgrade") {
-      return { ...response, confidence: "low" };
+    // Run validation pipeline even on mock data (CLAUDE.md A4)
+    const validationResult = this.validateResponse(response, context);
+
+    if (validationResult.isCriticalFailure) {
+      return getRefusalResponse();
     }
 
     return response;
   }
 
+  /**
+   * Generate a proactive insight card for the current page.
+   * Returns a pre-authored fixture based on the page type.
+   */
   async generateProactiveCard(
     page: PageType,
-    _context: CopilotContext
+    context: CopilotContext
   ): Promise<CopilotResponse> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await simulateLatency();
 
-    const fixture = proactiveFixtures.find((f) => f.triggerPage === page);
+    const response = proactiveFixtures[page] ?? proactiveFixtures.dashboard;
 
-    return (
-      fixture ?? {
-        id: `proactive-${Date.now()}`,
-        content: "Welcome to Accrue. I can help explain anything you see on this page.",
-        confidence: "high" as const,
-        sources: [],
-        type: "proactive" as const,
-        triggerPage: page,
-      }
-    );
+    // Mark as proactive
+    const proactiveResponse: CopilotResponse = {
+      ...response,
+      isProactive: true,
+    };
+
+    // Validate even proactive cards
+    const validationResult = this.validateResponse(proactiveResponse, context);
+
+    if (validationResult.isCriticalFailure) {
+      return {
+        ...getRefusalResponse(),
+        isProactive: true,
+      };
+    }
+
+    return proactiveResponse;
   }
 
+  /**
+   * Run the validation pipeline on a response.
+   */
   validateResponse(
     response: CopilotResponse,
     context: CopilotContext
   ): ValidationResult {
-    return validateResponse(response, context);
+    return validateCopilotResponse(response, context);
   }
 }

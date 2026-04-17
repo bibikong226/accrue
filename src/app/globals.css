@@ -1,78 +1,82 @@
 @import "tailwindcss";
-@import "../styles/tokens.css";
-@import "../styles/forced-colors.css";
 
 /* ============================================================
-   Tailwind v4 theme — actual color values, NOT var() references.
-   The @theme block declares Tailwind utility values directly.
-   tokens.css provides :root variables for manual CSS usage.
+   Accrue Design System — § 11
+
+   High-contrast, sharp geometry. Classic green/red done right
+   with redundant encoding (arrow + sign + color).
+   Inter + JetBrains Mono + Source Serif 4.
+
+   CRITICAL: @theme uses direct hex values, NEVER var() refs.
+   var() inside @theme creates circular references that break
+   ALL styling including focus outlines.
    ============================================================ */
+
 @theme {
-  /* Surfaces — Accrue § 11.3 */
-  --color-surface-base: #F5F2EB;
+  /* ── Surfaces (Light) § 11.3 ── */
+  --color-surface-canvas: #FAFAFA;
   --color-surface-raised: #FFFFFF;
   --color-surface-overlay: #FFFFFF;
-  --color-surface-sunken: #ECE8DD;
+  --color-surface-pressed: #F4F4F5;
+  --color-surface-inverse: #18181B;
 
-  /* Text — Ink system § 11.3 */
-  --color-primary: #1A1F25;
-  --color-secondary: #4A5568;
-  --color-muted: #718096;
+  /* ── Text § 11.3 ── */
+  --color-primary: #18181B;
+  --color-secondary: #52525B;
+  --color-muted: #71717A;
   --color-inverse: #FFFFFF;
 
-  /* Borders */
-  --color-border-default: #D4CFC4;
-  --color-border-strong: #A39E93;
+  /* ── Borders ── */
+  --color-border-subtle: #E4E4E7;
+  --color-border-default: #D4D4D8;
+  --color-border-strong: #A1A1AA;
 
-  /* Focus — strong blue for maximum visibility */
+  /* ── Focus — brand blue, 3px outline § 11.12 ── */
   --color-focus-ring: #2563EB;
 
-  /* Actions — Meridian Sage § 11.3 */
-  --color-action-primary: #4A7C59;
-  --color-action-primary-hover: #3D6A4B;
-  --color-action-destructive: #C2410C;
-  --color-action-destructive-hover: #A93A0B;
+  /* ── Actions — electric blue § 11.3 ── */
+  --color-action-primary: #2563EB;
+  --color-action-primary-hover: #1D4ED8;
+  --color-action-ghost-fg: #2563EB;
+  --color-action-ghost-hover: #EFF6FF;
+  --color-action-destructive: #B91C1C;
+  --color-action-destructive-hover: #991B1B;
 
-  /* Feedback */
-  --color-feedback-success: #2F7D4F;
-  --color-feedback-error: #C2410C;
-  --color-feedback-warning: #C68C3C;
-  --color-feedback-info: #2563EB;
+  /* ── Financial — classic green/red, AAA contrast § 11.3 ── */
+  --color-gain: #047857;
+  --color-gain-subtle: #D1FAE5;
+  --color-loss: #B91C1C;
+  --color-loss-subtle: #FEE2E2;
 
-  /* Financial signals — Verdant / Vermillion § 11.3 */
-  --color-gain: #2F7D4F;
-  --color-loss: #C2410C;
+  /* ── Feedback ── */
+  --color-feedback-success: #047857;
+  --color-feedback-error: #B91C1C;
+  --color-feedback-warning: #B45309;
+  --color-feedback-info: #1E40AF;
 
-  /* AI Confidence § 2.8 */
-  --color-ai-confidence-high: #2F7D4F;
-  --color-ai-confidence-medium: #2563EB;
-  --color-ai-confidence-low: #C68C3C;
+  /* ── AI Confidence § 2.8 ── */
+  --color-ai-high: #047857;
+  --color-ai-moderate: #1E40AF;
+  --color-ai-low: #B45309;
+  --color-ai-badge-bg: #18181B;
+  --color-ai-badge-fg: #FFFFFF;
 
-  /* Typography */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
-  --font-serif: Georgia, "Times New Roman", serif;
+  /* ── Typography § 11.2 ── */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif: 'Source Serif 4', ui-serif, Georgia, serif;
 }
 
 /* ============================================================
-   Base styles
+   Skip links — § 12.1
    ============================================================ */
-
-/* Skip links — sr-only by default, visible on focus per § 12.1 */
-.skip-links {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 9999;
-}
-
 .skip-link {
   position: absolute;
   left: -9999px;
   top: 0;
   padding: 12px 24px;
   background: #FFFFFF;
-  color: #4A7C59;
+  color: #2563EB;
   font-weight: 600;
   font-size: 14px;
   text-decoration: underline;
@@ -80,14 +84,15 @@
   border-radius: 0 0 8px 0;
   z-index: 9999;
 }
-
 .skip-link:focus {
   left: 0;
   outline: 3px solid #2563EB;
   outline-offset: 2px;
 }
 
-/* Screen reader only utility */
+/* ============================================================
+   Utilities
+   ============================================================ */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -100,61 +105,65 @@
   border-width: 0;
 }
 
-/* Focus ring utility */
-.focus-ring {
-  outline: 3px solid #2563EB;
-  outline-offset: 2px;
-}
-
-/* Tabular lining figures for financial numbers */
+/* JetBrains Mono tabular lining for financial numbers § 11.2 */
 .tabular-nums {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-feature-settings: "tnum" 1, "lnum" 1, "ss01" 1;
 }
 
 /* ============================================================
-   Reduced motion — § 11.7
+   Focus — § 11.12
+   3px solid brand blue, 2px offset. ALWAYS visible.
+   ============================================================ */
+:focus { outline: none; }
+:focus-visible {
+  outline: 3px solid #2563EB;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   Reduced motion — § 11.9
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
 }
 
 /* ============================================================
-   Selection
+   Forced colors — § 11.3
    ============================================================ */
-::selection {
-  background: #4A7C59;
-  color: #FFFFFF;
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+  button, [role="button"] {
+    border: 1px solid ButtonText !important;
+  }
+  [data-signal="gain"], [data-signal="loss"] {
+    color: CanvasText !important;
+  }
 }
 
 /* ============================================================
    Body defaults
    ============================================================ */
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
+  background: #FAFAFA;
+  color: #18181B;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ============================================================
-   Focus visible — global focus styles per § 12.4
-   Never outline: none without a replacement.
-   ============================================================ */
-:focus-visible {
-  outline: 3px solid #2563EB;
-  outline-offset: 2px;
-}
-
-/* Remove focus ring for mouse users only */
-:focus:not(:focus-visible) {
-  outline: none;
+::selection {
+  background: #2563EB;
+  color: #FFFFFF;
 }

@@ -1,179 +1,382 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { glossary } from "@/data/glossary";
+import React, { useState, useMemo } from "react";
+import { glossary, type GlossaryEntry } from "@/data/glossary";
 import { announce } from "@/lib/a11y/useAnnouncer";
 
-const LIFE_EVENT_CARDS = [
+/* ─── Life events ─── */
+interface LearnCard {
+  title: string;
+  description: string;
+}
+
+interface LifeEvent {
+  event: string;
+  description: string;
+  cards: LearnCard[];
+}
+
+const lifeEvents: LifeEvent[] = [
   {
-    event: "New to investing",
+    event: "Starting your first job",
+    description:
+      "You have a steady income and want to start building wealth. Here is what to know.",
     cards: [
-      { title: "What is a stock?", content: "A stock represents a small piece of ownership in a company. When you buy a stock, you own a fraction of that company's assets and earnings." },
-      { title: "How do I start?", content: "Start by understanding your goals and risk tolerance. Accrue's onboarding quiz helps with this. Then, begin with broad index funds or well-known companies you understand." },
-      { title: "What are the risks?", content: "All investments carry risk. Stock prices go up and down. You could lose some or all of your investment. Diversification — spreading your money across many investments — helps reduce this risk." },
+      {
+        title: "Set up an emergency fund first",
+        description:
+          "Before investing, save 3-6 months of expenses in a high-yield savings account. This protects you from needing to sell investments at a loss during emergencies.",
+      },
+      {
+        title: "Understand your employer benefits",
+        description:
+          "If your employer offers a 401(k) match, contribute at least enough to get the full match. It is essentially free money and the best return you can get.",
+      },
+      {
+        title: "Start with index funds",
+        description:
+          "Broad market index funds like VTI give you exposure to thousands of companies with very low fees. They are a great starting point for new investors.",
+      },
     ],
   },
   {
-    event: "Just got a raise",
+    event: "Getting married",
+    description:
+      "Combining finances or planning together? Here is how to align your investment strategy.",
     cards: [
-      { title: "Should I invest more?", content: "Consider increasing your emergency fund first (3-6 months of expenses). After that, investing extra income consistently — even small amounts — builds wealth over time through compounding." },
-      { title: "What is dollar-cost averaging?", content: "Investing a fixed dollar amount on a regular schedule, regardless of the stock price. This means you buy more shares when prices are low and fewer when prices are high." },
-      { title: "Automate your investments", content: "Set up a recurring investment in Accrue to invest automatically each paycheck. This removes the temptation to time the market and builds consistency." },
+      {
+        title: "Align on financial goals",
+        description:
+          "Discuss your risk tolerance, time horizons, and goals together. Partners often have different comfort levels with market volatility.",
+      },
+      {
+        title: "Review beneficiaries",
+        description:
+          "Update beneficiaries on all accounts (retirement, brokerage, insurance) after marriage. This is often overlooked but critically important.",
+      },
+      {
+        title: "Consider tax implications",
+        description:
+          "Marriage changes your tax bracket. Consider whether Roth or Traditional retirement accounts make more sense for your combined income.",
+      },
     ],
   },
   {
-    event: "Thinking about a house",
+    event: "Buying a home",
+    description:
+      "A home is likely your largest purchase. Here is how it affects your investment strategy.",
     cards: [
-      { title: "How much do I need?", content: "A typical down payment is 10-20% of the home price. For a $300,000 home, that's $30,000-$60,000. Don't forget closing costs (2-5% of the loan amount)." },
-      { title: "Where should I save?", content: "For goals under 3 years, consider keeping the money in cash or low-risk investments. Stock market losses close to your goal date could delay your purchase." },
-      { title: "Set a goal in Accrue", content: "Create a 'House down payment' goal in Accrue with your target amount and date. We'll track your progress and flag anything that puts you off track." },
+      {
+        title: "Keep your down payment safe",
+        description:
+          "Money you need within 1-2 years should not be in the stock market. Use a high-yield savings account or short-term bonds for your down payment fund.",
+      },
+      {
+        title: "Do not drain your retirement",
+        description:
+          "While you can borrow from a 401(k) for a home purchase, this comes with opportunity costs. The money loses years of compound growth.",
+      },
+      {
+        title: "Factor in total housing costs",
+        description:
+          "Property taxes, insurance, maintenance, and HOA fees add up. Budget for these before reducing investment contributions.",
+      },
     ],
   },
   {
-    event: "Taxes are due",
+    event: "Planning for retirement",
+    description:
+      "Whether retirement is 5 years or 30 years away, here is how to prepare.",
     cards: [
-      { title: "Capital gains basics", content: "When you sell a stock for more than you paid, the profit is a capital gain. Short-term gains (held <1 year) are taxed as regular income. Long-term gains (held >1 year) get lower tax rates." },
-      { title: "What is tax-loss harvesting?", content: "Selling investments at a loss to offset gains from other investments. This can reduce your tax bill. Accrue's Tax-Sensitive lot method does this automatically." },
-      { title: "Tax lot methods", content: "When you sell shares, the tax lot method determines which specific shares are sold. Tax-Sensitive (Accrue's default) automatically picks the most tax-efficient option." },
+      {
+        title: "Calculate your number",
+        description:
+          "A common rule of thumb is to save 25 times your annual expenses. If you spend $50,000 per year, aim for $1.25 million. Adjust based on expected Social Security and other income.",
+      },
+      {
+        title: "Shift to income-producing assets",
+        description:
+          "As retirement approaches, gradually increase allocation to bonds and dividend-paying stocks to generate income and reduce volatility.",
+      },
+      {
+        title: "Plan for healthcare costs",
+        description:
+          "Healthcare is often the largest expense in retirement. Consider an HSA (Health Savings Account) for its triple tax advantage if you are eligible.",
+      },
     ],
   },
 ];
 
-const FAQ_ITEMS = [
-  { q: "What is Accrue?", a: "Accrue is a research prototype — an accessible investment platform designed for blind and low-vision users and novice retail investors. No real money is involved. All data is simulated." },
-  { q: "How does the AI copilot work?", a: "The AI copilot explains your portfolio, defines financial terms, and flags potential concerns about trades. It never recommends specific trades (buy/sell/hold), never generates financial numbers on its own, and always shows its confidence level and data sources." },
-  { q: "Is my money safe?", a: "Accrue is a prototype — no real money is involved. In a real investment platform, your money would be protected by SIPC insurance up to $500,000." },
-  { q: "How do I place a trade?", a: "Go to the Trade page from the navigation bar. Search for a stock, choose Buy or Sell, enter a quantity, and review your order. Every trade passes through a mandatory review screen before execution." },
-  { q: "What are the fees?", a: "Accrue doesn't charge commissions on stock trades and doesn't accept payment for order flow. The only costs are the bid-ask spread (typically a few cents per share)." },
+/* ─── FAQ data ─── */
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+const faqItems: FAQItem[] = [
+  {
+    question: "Is my money really at risk?",
+    answer:
+      "Accrue is a research prototype. No real money is involved. All data is simulated for evaluation purposes. In real investing, yes, all investments carry risk of loss. The value of your investments can go down as well as up.",
+  },
+  {
+    question: "What is the AI Copilot?",
+    answer:
+      "The AI Copilot is an educational assistant powered by AI. It can explain financial concepts, summarize your portfolio, and flag potential concerns. It never recommends specific trades or tells you what to buy or sell.",
+  },
+  {
+    question: "Why does Accrue not have confetti or rewards?",
+    answer:
+      "Research shows that gamification features (confetti, streaks, badges) can encourage more frequent trading, which typically hurts long-term returns. Accrue treats investing as a serious financial decision, not a game.",
+  },
+  {
+    question: "How is the AI Copilot different from other AI assistants?",
+    answer:
+      "The Accrue AI Copilot has three key constraints: it never generates numbers (all data comes from your portfolio), it never recommends trades, and every response includes a confidence indicator and sources. These safeguards help prevent over-reliance on AI for financial decisions.",
+  },
+  {
+    question: "What is the Decision Journal?",
+    answer:
+      "The Decision Journal records your reasoning every time you place a trade. Over time, it helps you identify patterns in your decision-making, learn from mistakes, and become a more deliberate investor.",
+  },
+  {
+    question: "How do I use keyboard shortcuts?",
+    answer:
+      "Press Ctrl+/ to toggle the AI Copilot. Use Tab to navigate between interactive elements. Press Enter or Space to activate buttons and expand rows. Arrow keys navigate within tab lists and dropdowns.",
+  },
+  {
+    question: "Why are some metrics shown together?",
+    answer:
+      "Accrue always shows performance in context. Your return is shown alongside your personal goal and a market benchmark. This helps you evaluate whether your investments are performing well relative to what you are trying to achieve, not just whether they went up.",
+  },
 ];
 
-/**
- * Help & Learn page per § 9.
- * - Reachable from main nav by keyboard
- * - Clear heading hierarchy: H1 → H2 → H3
- * - Search with accessible results
- * - Life-event organized education
- */
 export default function HelpPage() {
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  /* Sorted glossary entries */
+  const sortedGlossary = useMemo(() => {
+    return [...glossary].sort((a, b) => a.term.localeCompare(b.term));
+  }, []);
+
+  /* Search filtering */
+  const filteredFAQ = useMemo(() => {
+    if (!searchQuery.trim()) return faqItems;
+    const q = searchQuery.toLowerCase();
+    return faqItems.filter(
+      (item) =>
+        item.question.toLowerCase().includes(q) ||
+        item.answer.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   const filteredGlossary = useMemo(() => {
-    if (!search.trim()) return glossary;
-    const q = search.toLowerCase();
-    return glossary.filter(
-      (g) =>
-        g.term.toLowerCase().includes(q) ||
-        g.definition.toLowerCase().includes(q)
+    if (!searchQuery.trim()) return sortedGlossary;
+    const q = searchQuery.toLowerCase();
+    return sortedGlossary.filter(
+      (entry) =>
+        entry.term.toLowerCase().includes(q) ||
+        entry.definition.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [searchQuery, sortedGlossary]);
 
-  function handleSearch(value: string) {
-    setSearch(value);
-    const count = glossary.filter(
-      (g) =>
-        g.term.toLowerCase().includes(value.toLowerCase()) ||
-        g.definition.toLowerCase().includes(value.toLowerCase())
-    ).length;
+  const filteredEvents = useMemo(() => {
+    if (!searchQuery.trim()) return lifeEvents;
+    const q = searchQuery.toLowerCase();
+    return lifeEvents.filter(
+      (ev) =>
+        ev.event.toLowerCase().includes(q) ||
+        ev.description.toLowerCase().includes(q) ||
+        ev.cards.some(
+          (c) =>
+            c.title.toLowerCase().includes(q) ||
+            c.description.toLowerCase().includes(q)
+        )
+    );
+  }, [searchQuery]);
+
+  const totalResults =
+    filteredFAQ.length + filteredGlossary.length + filteredEvents.length;
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
     if (value.trim()) {
+      const count =
+        faqItems.filter(
+          (i) =>
+            i.question.toLowerCase().includes(value.toLowerCase()) ||
+            i.answer.toLowerCase().includes(value.toLowerCase())
+        ).length +
+        sortedGlossary.filter(
+          (e) =>
+            e.term.toLowerCase().includes(value.toLowerCase()) ||
+            e.definition.toLowerCase().includes(value.toLowerCase())
+        ).length +
+        lifeEvents.filter(
+          (ev) =>
+            ev.event.toLowerCase().includes(value.toLowerCase()) ||
+            ev.description.toLowerCase().includes(value.toLowerCase()) ||
+            ev.cards.some(
+              (c) =>
+                c.title.toLowerCase().includes(value.toLowerCase()) ||
+                c.description.toLowerCase().includes(value.toLowerCase())
+            )
+        ).length;
       announce(`${count} results found`, "polite");
     }
-  }
+  };
 
   return (
     <>
-      <title>Help & Learn — Accrue</title>
-      <h1 className="text-2xl font-semibold text-primary mb-2">Help & Learn</h1>
-      <p className="text-sm text-secondary mb-8">
-        Learn about investing, get answers to common questions, and look up financial terms.
-      </p>
+      <h1 className="text-2xl font-bold text-primary mb-6">Help Center</h1>
 
-      {/* Search */}
-      <div className="mb-8">
-        <label htmlFor="help-search" className="block text-sm font-medium text-primary mb-1">
-          Search help articles and glossary
-        </label>
-        <input
-          id="help-search"
-          type="search"
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Type a term or question..."
-          className="w-full max-w-md rounded-lg border border-border-default bg-surface-base px-4 py-3 text-sm text-primary placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring min-h-[44px]"
-        />
-        {/* a11y: Results count announced via aria-live in announce() call above */}
-      </div>
-
-      {/* Learn by Life Event — § 9.2 */}
-      <section className="mb-12">
-        <h2 className="text-xl font-semibold text-primary mb-4">Learn</h2>
-        <p className="text-sm text-secondary mb-6">
-          Organized by what&apos;s happening in your life, not by asset class.
-        </p>
-
-        {LIFE_EVENT_CARDS.map((event) => (
-          <div key={event.event} className="mb-8">
-            <h3 className="text-base font-semibold text-primary mb-3">{event.event}</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {event.cards.map((card) => (
-                <details
-                  key={card.title}
-                  className="rounded-xl border border-border-default bg-surface-raised p-4"
-                >
-                  <summary className="text-sm font-medium text-primary cursor-pointer hover:text-action-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring rounded min-h-[44px] flex items-center">
-                    {card.title}
-                  </summary>
-                  <p className="text-sm text-secondary mt-3 leading-relaxed" style={{ fontFamily: "var(--font-serif)" }}>
-                    {card.content}
-                  </p>
-                </details>
-              ))}
-            </div>
+      {/* ─── Search ─── */}
+      <section aria-labelledby="help-search-heading" className="mb-8">
+        <h2 id="help-search-heading" className="sr-only">
+          Search Help
+        </h2>
+        <div className="max-w-xl">
+          <label
+            htmlFor="help-search"
+            className="block text-sm font-semibold text-primary mb-1"
+          >
+            Search Help
+          </label>
+          <input
+            id="help-search"
+            type="search"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search FAQs, glossary, and learning topics..."
+            className="w-full min-h-[44px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+          />
+          <div aria-live="polite" className="sr-only">
+            {searchQuery.trim()
+              ? `${totalResults} results found for "${searchQuery}"`
+              : ""}
           </div>
-        ))}
-      </section>
-
-      {/* FAQ */}
-      <section className="mb-12">
-        <h2 className="text-xl font-semibold text-primary mb-4">Frequently Asked Questions</h2>
-        <div className="space-y-3">
-          {FAQ_ITEMS.map((faq) => (
-            <details
-              key={faq.q}
-              className="rounded-xl border border-border-default bg-surface-raised p-4"
-            >
-              <summary className="text-sm font-medium text-primary cursor-pointer hover:text-action-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring rounded min-h-[44px] flex items-center">
-                {faq.q}
-              </summary>
-              <p className="text-sm text-secondary mt-3 leading-relaxed" style={{ fontFamily: "var(--font-serif)" }}>
-                {faq.a}
-              </p>
-            </details>
-          ))}
         </div>
       </section>
 
-      {/* Glossary — § 9, § 2.2 */}
-      <section>
-        <h2 className="text-xl font-semibold text-primary mb-4">Financial Glossary</h2>
-        <p className="text-sm text-secondary mb-4">
-          Plain-language definitions for every financial term used on the platform.
-          These exact definitions are what the AI copilot uses — it never paraphrases them.
-        </p>
-        <dl className="space-y-3">
-          {filteredGlossary
-            .sort((a, b) => a.term.localeCompare(b.term))
-            .map((entry) => (
-              <div
-                key={entry.term}
-                className="rounded-lg border border-border-default bg-surface-raised p-4"
-              >
-                <dt className="text-sm font-semibold text-primary">{entry.term}</dt>
-                <dd className="text-sm text-secondary mt-1">{entry.definition}</dd>
+      {/* ─── Learn by Life Event ─── */}
+      <section aria-labelledby="life-events-heading" className="mb-8">
+        <h2
+          id="life-events-heading"
+          className="text-lg font-semibold text-primary mb-4"
+        >
+          Learn by Life Event
+        </h2>
+        <div className="space-y-4">
+          {filteredEvents.map((event) => (
+            <details
+              key={event.event}
+              className="bg-surface-raised border border-border-default rounded-lg group"
+            >
+              <summary className="p-4 min-h-[44px] flex items-center cursor-pointer font-semibold text-primary hover:bg-surface-sunken rounded-lg focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2">
+                <span
+                  className="mr-2 text-muted group-open:rotate-90 transition-transform inline-block"
+                  aria-hidden="true"
+                >
+                  &#9654;
+                </span>
+                {event.event}
+              </summary>
+              <div className="px-4 pb-4">
+                <p className="text-sm text-secondary mb-4">
+                  {event.description}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {event.cards.map((card) => (
+                    <div
+                      key={card.title}
+                      className="border border-border-default rounded-md p-3"
+                    >
+                      <h3 className="text-sm font-semibold text-primary mb-1">
+                        {card.title}
+                      </h3>
+                      <p className="text-xs text-secondary">
+                        {card.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-        </dl>
-        {filteredGlossary.length === 0 && (
-          <p className="text-sm text-muted py-4">No terms match &quot;{search}&quot;.</p>
+            </details>
+          ))}
+          {filteredEvents.length === 0 && (
+            <p className="text-sm text-muted p-4">
+              No life events match your search.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* ─── FAQ ─── */}
+      <section aria-labelledby="faq-heading" className="mb-8">
+        <h2
+          id="faq-heading"
+          className="text-lg font-semibold text-primary mb-4"
+        >
+          Frequently Asked Questions
+        </h2>
+        <div className="space-y-2">
+          {filteredFAQ.map((item) => (
+            <details
+              key={item.question}
+              className="bg-surface-raised border border-border-default rounded-lg group"
+            >
+              <summary className="p-4 min-h-[44px] flex items-center cursor-pointer font-medium text-primary hover:bg-surface-sunken rounded-lg focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2">
+                <span
+                  className="mr-2 text-muted group-open:rotate-90 transition-transform inline-block"
+                  aria-hidden="true"
+                >
+                  &#9654;
+                </span>
+                {item.question}
+              </summary>
+              <div className="px-4 pb-4">
+                <p className="text-sm text-secondary">{item.answer}</p>
+              </div>
+            </details>
+          ))}
+          {filteredFAQ.length === 0 && (
+            <p className="text-sm text-muted p-4">
+              No FAQs match your search.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* ─── Glossary ─── */}
+      <section aria-labelledby="glossary-heading">
+        <h2
+          id="glossary-heading"
+          className="text-lg font-semibold text-primary mb-4"
+        >
+          Glossary
+        </h2>
+        {filteredGlossary.length === 0 ? (
+          <p className="text-sm text-muted p-4">
+            No glossary terms match your search.
+          </p>
+        ) : (
+          <div className="bg-surface-raised border border-border-default rounded-lg p-6">
+            <dl className="space-y-4">
+              {filteredGlossary.map((entry) => (
+                <div
+                  key={entry.term}
+                  className="border-b border-border-default last:border-0 pb-3 last:pb-0"
+                >
+                  <dt className="text-sm font-bold text-primary">
+                    {entry.term}
+                  </dt>
+                  <dd className="text-sm text-secondary mt-0.5">
+                    {entry.definition}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         )}
       </section>
     </>

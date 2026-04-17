@@ -1,455 +1,323 @@
 "use client";
 
-import {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-  type KeyboardEvent,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
-import { useRouter } from "next/navigation";
-import {
-  searchStocks,
-  getStockBySymbol,
-  calculateFees,
-  type StockQuote,
-} from "@/data/mockPortfolio";
+import React, { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { holdings } from "@/data/mockPortfolio";
+import { formatCurrency } from "@/lib/format";
+import { announce, announceError } from "@/lib/a11y/useAnnouncer";
 
-/* ------------------------------------------------------------------ */
-/*  Order type descriptions (novice-friendly per spec § 4)            */
-/* ------------------------------------------------------------------ */
-
+/* ─── Order types with descriptions ─── */
 const ORDER_TYPES = [
   {
     value: "market",
-    label: "Market",
-    description: "Executes immediately at current market price",
+    label: "Market Order",
+    description:
+      "Executes immediately at the best available price. Price may differ from what you see now.",
   },
   {
     value: "limit",
-    label: "Limit",
-    description: "Executes only if price reaches your target",
+    label: "Limit Order",
+    description:
+      "Executes only at your specified price or better. May not execute if the price is not reached.",
   },
   {
     value: "stop",
-    label: "Stop",
-    description: "Sells automatically if price falls to your stop level",
+    label: "Stop Order",
+    description:
+      "Becomes a market order when the stock reaches your specified price. Used to limit losses.",
   },
 ] as const;
 
 type OrderType = (typeof ORDER_TYPES)[number]["value"];
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+interface FormErrors {
+  symbol?: string;
+  quantity?: string;
+  limitPrice?: string;
+  stopPrice?: string;
+}
 
-export default function OrderEntryPage() {
+function OrdersPageContent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
 
-  /* ---- form state ---- */
-  const [symbolQuery, setSymbolQuery] = useState("");
-  const [selectedStock, setSelectedStock] = useState<StockQuote | null>(null);
-  const [action, setAction] = useState<"buy" | "sell">("buy");
-  const [inputMode, setInputMode] = useState<"shares" | "dollars">("shares");
+  /* State */
+  const [symbolInput, setSymbolInput] = useState(
+    searchParams.get("symbol") || ""
+  );
+  const [selectedSymbol, setSelectedSymbol] = useState(
+    searchParams.get("symbol") || ""
+  );
+  const [action, setAction] = useState<"buy" | "sell">(
+    (searchParams.get("action") as "buy" | "sell") || "buy"
+  );
+  const [amountType, setAmountType] = useState<"dollars" | "shares">("shares");
   const [quantity, setQuantity] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
-
-  /* ---- search state ---- */
-  const [searchResults, setSearchResults] = useState<StockQuote[]>([]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [activeResultIndex, setActiveResultIndex] = useState(-1);
-
-  /* ---- validation state ---- */
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [stopPrice, setStopPrice] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownIndex, setDropdownIndex] = useState(-1);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
 
-  /* ---- refs ---- */
   const symbolInputRef = useRef<HTMLInputElement>(null);
-  const listboxRef = useRef<HTMLUListElement>(null);
-  const selectionAnnouncerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
-  const firstErrorFieldRef = useRef<HTMLElement | null>(null);
 
-  /* ---- derived values ---- */
-  const price = selectedStock?.currentPrice ?? 0;
-
-  const numericQuantity = useMemo(() => {
-    const raw = parseFloat(quantity);
-    if (isNaN(raw) || raw <= 0) return 0;
-    if (inputMode === "dollars" && price > 0) {
-      return raw / price;
-    }
-    return raw;
-  }, [quantity, inputMode, price]);
-
-  const sharesDisplay = useMemo(() => {
-    if (inputMode === "dollars" && price > 0 && numericQuantity > 0) {
-      return numericQuantity.toFixed(4);
-    }
-    return null;
-  }, [inputMode, price, numericQuantity]);
-
-  const dollarsDisplay = useMemo(() => {
-    if (inputMode === "shares" && price > 0 && numericQuantity > 0) {
-      return (numericQuantity * price).toFixed(2);
-    }
-    return null;
-  }, [inputMode, price, numericQuantity]);
-
-  const fees = useMemo(() => {
-    if (!selectedStock || numericQuantity <= 0) {
-      return { spread: 0, commission: 0, secFee: 0, tafFee: 0, total: 0 };
-    }
-    return calculateFees(action, numericQuantity, price);
-  }, [action, numericQuantity, price, selectedStock]);
-
-  const estimatedTotal = useMemo(() => {
-    if (numericQuantity <= 0 || price <= 0) return 0;
-    const subtotal = numericQuantity * price;
-    return action === "buy" ? subtotal + fees.total : subtotal - fees.total;
-  }, [numericQuantity, price, fees.total, action]);
-
-  /* ---- symbol search ---- */
-  const handleSymbolChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setSymbolQuery(q);
-    setSelectedStock(null);
-    if (q.trim().length > 0) {
-      const results = searchStocks(q);
-      setSearchResults(results);
-      setIsDropdownOpen(results.length > 0);
-      setActiveResultIndex(-1);
-    } else {
-      setSearchResults([]);
-      setIsDropdownOpen(false);
-    }
-    if (submitted) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.symbol;
-        return next;
-      });
-    }
-  }, [submitted]);
-
-  const selectStock = useCallback((stock: StockQuote) => {
-    setSelectedStock(stock);
-    setSymbolQuery(stock.symbol);
-    setSearchResults([]);
-    setIsDropdownOpen(false);
-    setActiveResultIndex(-1);
-    /* a11y: announce selection to screen readers via polite live region */
-    if (selectionAnnouncerRef.current) {
-      selectionAnnouncerRef.current.textContent = `${stock.symbol}, ${stock.name} selected.`;
-    }
-  }, []);
-
-  const handleSymbolKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLInputElement>) => {
-      if (!isDropdownOpen || searchResults.length === 0) return;
-
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          setActiveResultIndex((prev) =>
-            prev < searchResults.length - 1 ? prev + 1 : 0,
-          );
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setActiveResultIndex((prev) =>
-            prev > 0 ? prev - 1 : searchResults.length - 1,
-          );
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (activeResultIndex >= 0 && activeResultIndex < searchResults.length) {
-            selectStock(searchResults[activeResultIndex]);
-          }
-          break;
-        case "Escape":
-          e.preventDefault();
-          setIsDropdownOpen(false);
-          setActiveResultIndex(-1);
-          break;
-      }
-    },
-    [isDropdownOpen, searchResults, activeResultIndex, selectStock],
+  /* Filter symbols for autocomplete */
+  const filteredSymbols = holdings.filter(
+    (h) =>
+      h.symbol.toLowerCase().includes(symbolInput.toLowerCase()) ||
+      h.name.toLowerCase().includes(symbolInput.toLowerCase())
   );
 
-  /* ---- close dropdown on outside click ---- */
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (
-        symbolInputRef.current &&
-        !symbolInputRef.current.contains(target) &&
-        listboxRef.current &&
-        !listboxRef.current.contains(target)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  /* Selected holding data */
+  const selectedHolding = holdings.find((h) => h.symbol === selectedSymbol);
 
-  /* ---- scroll active option into view ---- */
-  useEffect(() => {
-    if (activeResultIndex >= 0 && listboxRef.current) {
-      const option = listboxRef.current.children[activeResultIndex] as HTMLElement;
-      option?.scrollIntoView({ block: "nearest" });
-    }
-  }, [activeResultIndex]);
+  /* Cost preview */
+  const quantityNum = parseFloat(quantity) || 0;
+  const estimatedPrice = selectedHolding?.currentPrice ?? 0;
+  const estimatedTotal =
+    amountType === "shares"
+      ? quantityNum * estimatedPrice
+      : quantityNum;
+  const estimatedShares =
+    amountType === "dollars" && estimatedPrice > 0
+      ? quantityNum / estimatedPrice
+      : quantityNum;
 
-  /* ---- form validation ---- */
-  const validate = useCallback((): Record<string, string> => {
-    const errs: Record<string, string> = {};
-    if (!selectedStock) {
-      errs.symbol = "Ticker is required";
+  /* Validation */
+  const validate = (): FormErrors => {
+    const errs: FormErrors = {};
+    if (!selectedSymbol) {
+      errs.symbol = "Please select a valid stock symbol.";
     }
-    if (!quantity || parseFloat(quantity) <= 0) {
-      errs.quantity = `Quantity (${inputMode}) is required and must be greater than zero`;
+    if (!quantity || quantityNum <= 0) {
+      errs.quantity = `Please enter a valid ${amountType === "shares" ? "number of shares" : "dollar amount"}.`;
+    }
+    if (
+      action === "sell" &&
+      selectedHolding &&
+      amountType === "shares" &&
+      quantityNum > selectedHolding.shares
+    ) {
+      errs.quantity = `You only own ${selectedHolding.shares} shares of ${selectedSymbol}.`;
     }
     if (orderType === "limit" && (!limitPrice || parseFloat(limitPrice) <= 0)) {
-      errs.limitPrice = "Limit price is required for limit orders";
+      errs.limitPrice = "Please enter a valid limit price.";
     }
-    if (orderType === "stop" && (!limitPrice || parseFloat(limitPrice) <= 0)) {
-      errs.limitPrice = "Stop price is required for stop orders";
+    if (orderType === "stop" && (!stopPrice || parseFloat(stopPrice) <= 0)) {
+      errs.stopPrice = "Please enter a valid stop price.";
     }
     return errs;
-  }, [selectedStock, quantity, inputMode, orderType, limitPrice]);
+  };
 
-  const handleSubmit = useCallback(
-    (e: FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+    const validationErrors = validate();
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      announceError(
+        `${Object.keys(validationErrors).length} errors found. Please correct them before continuing.`
+      );
+      if (errorSummaryRef.current) {
+        errorSummaryRef.current.focus();
+      }
+      return;
+    }
+
+    /* Navigate to review page */
+    const params = new URLSearchParams({
+      symbol: selectedSymbol,
+      action,
+      amountType,
+      quantity,
+      orderType,
+      ...(orderType === "limit" ? { limitPrice } : {}),
+      ...(orderType === "stop" ? { stopPrice } : {}),
+    });
+    router.push(`/orders/review?${params.toString()}`);
+  };
+
+  const selectSymbol = (symbol: string) => {
+    setSelectedSymbol(symbol);
+    setSymbolInput(symbol);
+    setShowDropdown(false);
+    setDropdownIndex(-1);
+    announce(`Selected ${symbol}`, "polite");
+  };
+
+  const handleSymbolKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown) return;
+
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSubmitted(true);
-
-      const errs = validate();
-      setErrors(errs);
-
-      if (Object.keys(errs).length > 0) {
-        /* a11y: Focus the first field with an error per § 2.3 */
-        const firstKey = Object.keys(errs)[0];
-        const fieldMap: Record<string, string> = {
-          symbol: "symbol-input",
-          quantity: "quantity-input",
-          limitPrice: "limit-price-input",
-        };
-        const el = document.getElementById(fieldMap[firstKey] ?? "");
-        el?.focus();
-        return;
-      }
-
-      /* Navigate to review page with order data as URL search params */
-      const params = new URLSearchParams({
-        symbol: selectedStock!.symbol,
-        action,
-        inputMode,
-        quantity,
-        orderType,
-        ...(orderType !== "market" && limitPrice ? { limitPrice } : {}),
-      });
-
-      router.push(`/orders/review?${params.toString()}`);
-    },
-    [validate, selectedStock, action, inputMode, quantity, orderType, limitPrice, router],
-  );
-
-  /* ---- clear field-level error on change ---- */
-  const clearError = useCallback(
-    (field: string) => {
-      if (submitted) {
-        setErrors((prev) => {
-          const next = { ...prev };
-          delete next[field];
-          return next;
-        });
-      }
-    },
-    [submitted],
-  );
-
-  /* ---- active descendant id ---- */
-  const activeDescendantId =
-    activeResultIndex >= 0 ? `symbol-option-${activeResultIndex}` : undefined;
+      setDropdownIndex((prev) =>
+        Math.min(prev + 1, filteredSymbols.length - 1)
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setDropdownIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter" && dropdownIndex >= 0) {
+      e.preventDefault();
+      selectSymbol(filteredSymbols[dropdownIndex].symbol);
+    } else if (e.key === "Escape") {
+      setShowDropdown(false);
+      setDropdownIndex(-1);
+    }
+  };
 
   return (
-    <div className="max-w-xl">
-      <h1 className="text-2xl font-semibold text-primary mb-6">Place a Trade</h1>
+    <>
+      <h1 className="text-2xl font-bold text-primary mb-6">Place a Trade</h1>
 
-      {/* Error summary — rendered when form has been submitted with errors */}
+      {/* Error Summary */}
       {submitted && Object.keys(errors).length > 0 && (
         <div
           ref={errorSummaryRef}
-          /* a11y: role="alert" causes screen readers to announce the error summary immediately */
           role="alert"
-          className="mb-6 rounded-lg border-2 border-feedback-error bg-surface-raised p-4"
+          tabIndex={-1}
+          className="mb-6 p-4 border-2 border-feedback-error rounded-lg bg-red-50 focus:outline-none"
         >
-          <p className="font-semibold text-feedback-error mb-2">
-            Please fix the following errors:
-          </p>
-          <ul className="list-disc pl-5 space-y-1">
-            {Object.entries(errors).map(([key, msg]) => (
-              <li key={key} className="text-feedback-error text-sm">
-                {msg}
-              </li>
-            ))}
+          <h2 className="text-sm font-bold text-feedback-error mb-2">
+            Please correct the following errors:
+          </h2>
+          <ul className="list-disc list-inside text-sm text-feedback-error">
+            {errors.symbol && <li>{errors.symbol}</li>}
+            {errors.quantity && <li>{errors.quantity}</li>}
+            {errors.limitPrice && <li>{errors.limitPrice}</li>}
+            {errors.stopPrice && <li>{errors.stopPrice}</li>}
           </ul>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate>
-        {/* -------------------------------------------------------- */}
-        {/*  Symbol search                                           */}
-        {/* -------------------------------------------------------- */}
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="max-w-xl"
+      >
+        {/* Symbol Search */}
         <div className="mb-6 relative">
           <label
-            htmlFor="symbol-input"
-            className="block text-sm font-medium text-primary mb-1"
+            htmlFor="symbol-search"
+            className="block text-sm font-semibold text-primary mb-1"
           >
-            Ticker symbol
-            <span className="text-feedback-error ml-1" aria-hidden="true">*</span>
+            Stock Symbol <span aria-hidden="true">*</span>
+            <span className="sr-only">(required)</span>
           </label>
           <input
+            id="symbol-search"
             ref={symbolInputRef}
-            id="symbol-input"
             type="text"
-            /* a11y: combobox role for autocomplete with listbox popup */
             role="combobox"
-            aria-required="true"
-            aria-expanded={isDropdownOpen}
+            aria-expanded={showDropdown}
             aria-controls="symbol-listbox"
-            aria-activedescendant={activeDescendantId}
             aria-autocomplete="list"
-            aria-invalid={!!errors.symbol}
+            aria-activedescendant={
+              dropdownIndex >= 0
+                ? `symbol-option-${dropdownIndex}`
+                : undefined
+            }
             aria-describedby={errors.symbol ? "symbol-error" : undefined}
-            autoComplete="off"
-            value={symbolQuery}
-            onChange={handleSymbolChange}
-            onKeyDown={handleSymbolKeyDown}
-            onFocus={() => {
-              if (searchResults.length > 0 && !selectedStock) {
-                setIsDropdownOpen(true);
-              }
+            aria-invalid={errors.symbol ? "true" : undefined}
+            value={symbolInput}
+            onChange={(e) => {
+              setSymbolInput(e.target.value.toUpperCase());
+              setSelectedSymbol("");
+              setShowDropdown(e.target.value.length > 0);
+              setDropdownIndex(-1);
             }}
-            placeholder="Search by ticker or company name"
-            className={`w-full rounded-lg border-2 px-4 py-3 text-sm text-primary bg-surface-base min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+            onFocus={() => {
+              if (symbolInput.length > 0) setShowDropdown(true);
+            }}
+            onBlur={() => {
+              /* Delay to allow click on dropdown item */
+              setTimeout(() => setShowDropdown(false), 200);
+            }}
+            onKeyDown={handleSymbolKeyDown}
+            placeholder="Search by symbol or name..."
+            className={`w-full min-h-[44px] px-3 py-2 rounded-md border ${
               errors.symbol
                 ? "border-feedback-error"
-                : "border-border-default focus:border-action-primary"
-            }`}
+                : "border-border-default"
+            } bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2`}
           />
           {errors.symbol && (
             <p
               id="symbol-error"
-              /* a11y: role="alert" for inline field errors per § 2.3 */
+              className="text-sm text-feedback-error mt-1"
               role="alert"
-              className="mt-1 text-sm text-feedback-error"
             >
               {errors.symbol}
             </p>
           )}
 
-          {/* a11y: Live region announces search results count and selection */}
-          <div
-            ref={selectionAnnouncerRef}
-            aria-live="polite"
-            aria-atomic="true"
-            className="sr-only"
-          />
-
-          {/* Search results dropdown */}
-          {isDropdownOpen && searchResults.length > 0 && (
+          {/* Dropdown */}
+          {showDropdown && filteredSymbols.length > 0 && (
             <ul
-              ref={listboxRef}
               id="symbol-listbox"
+              ref={dropdownRef}
               role="listbox"
-              aria-label="Stock search results"
-              className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border-2 border-border-default bg-surface-overlay shadow-lg"
+              aria-label="Stock symbol suggestions"
+              className="absolute z-20 w-full mt-1 bg-surface-raised border border-border-default rounded-md shadow-lg max-h-48 overflow-y-auto"
             >
-              {searchResults.map((stock, idx) => (
+              {filteredSymbols.map((h, i) => (
                 <li
-                  key={stock.symbol}
-                  id={`symbol-option-${idx}`}
+                  key={h.symbol}
+                  id={`symbol-option-${i}`}
                   role="option"
-                  /* a11y: aria-selected marks the visually focused option for screen readers */
-                  aria-selected={idx === activeResultIndex}
-                  onClick={() => selectStock(stock)}
-                  className={`flex items-center justify-between px-4 py-3 cursor-pointer min-h-[44px] ${
-                    idx === activeResultIndex
-                      ? "bg-surface-raised text-primary"
-                      : "text-primary hover:bg-surface-raised"
+                  aria-selected={dropdownIndex === i}
+                  className={`px-3 py-2 min-h-[44px] flex items-center justify-between cursor-pointer ${
+                    dropdownIndex === i
+                      ? "bg-surface-sunken"
+                      : "hover:bg-surface-sunken"
                   }`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectSymbol(h.symbol);
+                  }}
                 >
                   <span>
-                    <span className="font-semibold font-mono">{stock.symbol}</span>
-                    <span className="ml-2 text-sm text-secondary">{stock.name}</span>
+                    <span className="font-semibold text-primary">
+                      {h.symbol}
+                    </span>
+                    <span className="text-xs text-muted ml-2">{h.name}</span>
                   </span>
-                  <span className="text-sm font-mono text-secondary">
-                    ${stock.currentPrice.toFixed(2)}
+                  <span className="text-sm tabular-nums text-secondary">
+                    {formatCurrency(h.currentPrice)}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-
-          {/* a11y: announce result count for screen readers */}
-          {isDropdownOpen && (
-            <div aria-live="polite" className="sr-only">
-              {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} available. Use arrow keys to navigate.
-            </div>
-          )}
+          <div aria-live="polite" className="sr-only">
+            {showDropdown && filteredSymbols.length > 0
+              ? `${filteredSymbols.length} suggestions available`
+              : showDropdown && symbolInput.length > 0
+                ? "No matching symbols found"
+                : ""}
+          </div>
         </div>
 
-        {/* Selected stock info */}
-        {selectedStock && (
-          <div className="mb-6 rounded-lg border border-border-default bg-surface-raised p-4">
-            <p className="text-sm text-primary">
-              <span className="font-semibold font-mono">{selectedStock.symbol}</span>
-              {" "}&mdash; {selectedStock.name}
-            </p>
-            <p className="text-sm text-secondary mt-1">
-              Current price:{" "}
-              <span className="font-mono font-semibold">
-                ${selectedStock.currentPrice.toFixed(2)}
-              </span>
-              {" "}
-              <span
-                className={
-                  selectedStock.todayChangePercent >= 0
-                    ? "text-gain"
-                    : "text-loss"
-                }
-              >
-                {selectedStock.todayChangePercent >= 0 ? "+" : ""}
-                {selectedStock.todayChangePercent.toFixed(2)}%
-                {selectedStock.todayChangePercent >= 0 ? " up" : " down"} today
-              </span>
-            </p>
-          </div>
-        )}
-
-        {/* -------------------------------------------------------- */}
-        {/*  Buy / Sell selector                                     */}
-        {/* -------------------------------------------------------- */}
+        {/* Buy / Sell Radio */}
         <fieldset className="mb-6">
-          <legend className="block text-sm font-medium text-primary mb-2">
-            Action
-            <span className="text-feedback-error ml-1" aria-hidden="true">*</span>
+          <legend className="block text-sm font-semibold text-primary mb-2">
+            Action <span aria-hidden="true">*</span>
+            <span className="sr-only">(required)</span>
           </legend>
           <div className="flex gap-4">
             {(["buy", "sell"] as const).map((a) => (
               <label
                 key={a}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 cursor-pointer min-h-[44px] transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring ${
+                className={`flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md border cursor-pointer font-medium text-sm focus-within:outline-3 focus-within:outline-focus-ring focus-within:outline-offset-2 ${
                   action === a
-                    ? "border-action-primary bg-surface-raised"
-                    : "border-border-default bg-surface-base hover:bg-surface-raised"
+                    ? a === "buy"
+                      ? "border-action-primary bg-green-50 text-action-primary"
+                      : "border-action-destructive bg-red-50 text-action-destructive"
+                    : "border-border-default text-secondary"
                 }`}
               >
                 <input
@@ -458,149 +326,95 @@ export default function OrderEntryPage() {
                   value={a}
                   checked={action === a}
                   onChange={() => setAction(a)}
-                  /* a11y: aria-label provides full context: "Action: Buy" not just "Buy" */
-                  aria-label={`Action: ${a === "buy" ? "Buy" : "Sell"}`}
-                  className="w-5 h-5 accent-action-primary"
+                  className="sr-only"
                 />
-                <span className="text-sm font-medium text-primary capitalize">
-                  {a}
-                </span>
+                {a === "buy" ? "Buy" : "Sell"}
               </label>
             ))}
           </div>
         </fieldset>
 
-        {/* -------------------------------------------------------- */}
-        {/*  Dollars / Shares toggle                                 */}
-        {/* -------------------------------------------------------- */}
+        {/* Dollars / Shares Toggle */}
         <fieldset className="mb-6">
-          <legend className="block text-sm font-medium text-primary mb-2">
-            Order in
+          <legend className="block text-sm font-semibold text-primary mb-2">
+            Amount Type
           </legend>
-          <div
-            role="radiogroup"
-            aria-label="Order input mode"
-            className="inline-flex rounded-lg border-2 border-border-default overflow-hidden"
-          >
-            {(["shares", "dollars"] as const).map((mode) => (
+          <div className="flex gap-4">
+            {(["shares", "dollars"] as const).map((t) => (
               <label
-                key={mode}
-                className={`px-4 py-2 text-sm font-medium cursor-pointer min-h-[44px] flex items-center transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring ${
-                  inputMode === mode
-                    ? "bg-action-primary text-inverse"
-                    : "bg-surface-base text-primary hover:bg-surface-raised"
+                key={t}
+                className={`flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md border cursor-pointer font-medium text-sm focus-within:outline-3 focus-within:outline-focus-ring focus-within:outline-offset-2 ${
+                  amountType === t
+                    ? "border-action-primary bg-green-50 text-action-primary"
+                    : "border-border-default text-secondary"
                 }`}
               >
                 <input
                   type="radio"
-                  name="inputMode"
-                  value={mode}
-                  checked={inputMode === mode}
-                  onChange={() => {
-                    setInputMode(mode);
-                    setQuantity("");
-                  }}
+                  name="amountType"
+                  value={t}
+                  checked={amountType === t}
+                  onChange={() => setAmountType(t)}
                   className="sr-only"
                 />
-                <span className="capitalize">{mode}</span>
+                {t === "shares" ? "Shares" : "Dollars"}
               </label>
             ))}
           </div>
         </fieldset>
 
-        {/* -------------------------------------------------------- */}
-        {/*  Quantity field                                           */}
-        {/* -------------------------------------------------------- */}
+        {/* Quantity */}
         <div className="mb-6">
           <label
-            htmlFor="quantity-input"
-            className="block text-sm font-medium text-primary mb-1"
+            htmlFor="quantity"
+            className="block text-sm font-semibold text-primary mb-1"
           >
-            Quantity ({inputMode})
-            <span className="text-feedback-error ml-1" aria-hidden="true">*</span>
+            Quantity ({amountType === "shares" ? "shares" : "USD"}){" "}
+            <span aria-hidden="true">*</span>
+            <span className="sr-only">(required)</span>
           </label>
           <input
-            id="quantity-input"
+            id="quantity"
             type="number"
             min="0"
-            step={inputMode === "dollars" ? "0.01" : "0.0001"}
-            aria-required="true"
-            aria-invalid={!!errors.quantity}
-            aria-describedby={
-              [
-                errors.quantity ? "quantity-error" : null,
-                "quantity-preview",
-              ]
-                .filter(Boolean)
-                .join(" ") || undefined
-            }
+            step={amountType === "shares" ? "0.0001" : "0.01"}
             value={quantity}
-            onChange={(e) => {
-              setQuantity(e.target.value);
-              clearError("quantity");
-            }}
-            placeholder={inputMode === "dollars" ? "e.g. 500.00" : "e.g. 10"}
-            className={`w-full rounded-lg border-2 px-4 py-3 text-sm font-mono text-primary bg-surface-base min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+            onChange={(e) => setQuantity(e.target.value)}
+            aria-describedby={errors.quantity ? "quantity-error" : undefined}
+            aria-invalid={errors.quantity ? "true" : undefined}
+            placeholder={
+              amountType === "shares" ? "Number of shares" : "Dollar amount"
+            }
+            className={`w-full min-h-[44px] px-3 py-2 rounded-md border ${
               errors.quantity
                 ? "border-feedback-error"
-                : "border-border-default focus:border-action-primary"
-            }`}
+                : "border-border-default"
+            } bg-surface-base text-primary tabular-nums focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2`}
           />
           {errors.quantity && (
             <p
               id="quantity-error"
+              className="text-sm text-feedback-error mt-1"
               role="alert"
-              className="mt-1 text-sm text-feedback-error"
             >
               {errors.quantity}
             </p>
           )}
-
-          {/* Live preview: conversion hint */}
-          <p
-            id="quantity-preview"
-            aria-live="polite"
-            className="mt-1 text-sm text-secondary"
-          >
-            {inputMode === "dollars" && sharesDisplay && selectedStock && (
-              <>
-                &asymp; {sharesDisplay} shares at ${selectedStock.currentPrice.toFixed(2)} (estimated)
-              </>
-            )}
-            {inputMode === "shares" && dollarsDisplay && selectedStock && (
-              <>
-                &asymp; ${dollarsDisplay} at ${selectedStock.currentPrice.toFixed(2)} (estimated)
-              </>
-            )}
-          </p>
         </div>
 
-        {/* -------------------------------------------------------- */}
-        {/*  Order type                                              */}
-        {/* -------------------------------------------------------- */}
+        {/* Order Type */}
         <div className="mb-6">
           <label
-            htmlFor="order-type-select"
-            className="block text-sm font-medium text-primary mb-1"
+            htmlFor="order-type"
+            className="block text-sm font-semibold text-primary mb-1"
           >
-            Order type
-            <span className="text-feedback-error ml-1" aria-hidden="true">*</span>
+            Order Type
           </label>
-          <p id="order-type-helper" className="text-sm text-secondary mb-2">
-            Not sure? Market orders work for most first-time buys.
-          </p>
           <select
-            id="order-type-select"
-            aria-required="true"
-            aria-describedby="order-type-helper order-type-description"
+            id="order-type"
             value={orderType}
-            onChange={(e) => {
-              setOrderType(e.target.value as OrderType);
-              if (e.target.value === "market") {
-                setLimitPrice("");
-              }
-            }}
-            className="w-full rounded-lg border-2 border-border-default px-4 py-3 text-sm text-primary bg-surface-base min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            onChange={(e) => setOrderType(e.target.value as OrderType)}
+            className="w-full min-h-[44px] px-3 py-2 rounded-md border border-border-default bg-surface-base text-primary focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
           >
             {ORDER_TYPES.map((ot) => (
               <option key={ot.value} value={ot.value}>
@@ -608,46 +422,43 @@ export default function OrderEntryPage() {
               </option>
             ))}
           </select>
-          <p id="order-type-description" className="mt-1 text-sm text-secondary">
+          <p className="text-xs text-muted mt-1">
             {ORDER_TYPES.find((ot) => ot.value === orderType)?.description}
           </p>
         </div>
 
-        {/* Limit / Stop price field (shown only for non-market orders) */}
-        {orderType !== "market" && (
+        {/* Limit Price (conditional) */}
+        {orderType === "limit" && (
           <div className="mb-6">
             <label
-              htmlFor="limit-price-input"
-              className="block text-sm font-medium text-primary mb-1"
+              htmlFor="limit-price"
+              className="block text-sm font-semibold text-primary mb-1"
             >
-              {orderType === "limit" ? "Limit price ($)" : "Stop price ($)"}
-              <span className="text-feedback-error ml-1" aria-hidden="true">*</span>
+              Limit Price (USD) <span aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
             </label>
             <input
-              id="limit-price-input"
+              id="limit-price"
               type="number"
               min="0"
               step="0.01"
-              aria-required="true"
-              aria-invalid={!!errors.limitPrice}
-              aria-describedby={errors.limitPrice ? "limit-price-error" : undefined}
               value={limitPrice}
-              onChange={(e) => {
-                setLimitPrice(e.target.value);
-                clearError("limitPrice");
-              }}
-              placeholder="e.g. 150.00"
-              className={`w-full rounded-lg border-2 px-4 py-3 text-sm font-mono text-primary bg-surface-base min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring ${
+              onChange={(e) => setLimitPrice(e.target.value)}
+              aria-describedby={
+                errors.limitPrice ? "limit-price-error" : undefined
+              }
+              aria-invalid={errors.limitPrice ? "true" : undefined}
+              className={`w-full min-h-[44px] px-3 py-2 rounded-md border ${
                 errors.limitPrice
                   ? "border-feedback-error"
-                  : "border-border-default focus:border-action-primary"
-              }`}
+                  : "border-border-default"
+              } bg-surface-base text-primary tabular-nums focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2`}
             />
             {errors.limitPrice && (
               <p
                 id="limit-price-error"
+                className="text-sm text-feedback-error mt-1"
                 role="alert"
-                className="mt-1 text-sm text-feedback-error"
               >
                 {errors.limitPrice}
               </p>
@@ -655,84 +466,113 @@ export default function OrderEntryPage() {
           </div>
         )}
 
-        {/* -------------------------------------------------------- */}
-        {/*  Estimated cost preview                                  */}
-        {/* -------------------------------------------------------- */}
-        {selectedStock && numericQuantity > 0 && (
-          <div
-            className="mb-6 rounded-lg border border-border-default bg-surface-raised p-4"
-            aria-live="polite"
-          >
-            <p className="text-sm font-medium text-primary mb-2">
-              Estimated cost breakdown
-            </p>
-            <dl className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-secondary">
-                  {numericQuantity.toFixed(4)} shares &times; ${price.toFixed(2)}
-                </dt>
-                <dd className="font-mono font-semibold text-primary">
-                  ${(numericQuantity * price).toFixed(2)}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-secondary">Estimated spread</dt>
-                <dd className="font-mono text-primary">${fees.spread.toFixed(2)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-secondary">Commission</dt>
-                <dd className="font-mono text-primary">${fees.commission.toFixed(2)}</dd>
-              </div>
-              {action === "sell" && (
-                <>
-                  <div className="flex justify-between">
-                    <dt className="text-secondary">SEC fee</dt>
-                    <dd className="font-mono text-primary">${fees.secFee.toFixed(4)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-secondary">TAF fee</dt>
-                    <dd className="font-mono text-primary">${fees.tafFee.toFixed(4)}</dd>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between border-t border-border-default pt-2 mt-2">
-                <dt className="font-medium text-primary">
-                  Estimated all-in {action === "buy" ? "cost" : "proceeds"}
-                </dt>
-                <dd className="font-mono font-semibold text-primary">
-                  ${estimatedTotal.toFixed(2)}
-                </dd>
-              </div>
-            </dl>
-            <p className="mt-2 text-xs text-muted">
-              Estimated all-in cost: ${fees.spread.toFixed(2)} spread + ${fees.commission.toFixed(2)} commission{action === "sell" ? ` + $${(fees.secFee + fees.tafFee).toFixed(4)} regulatory fees` : ""} = ${fees.total.toFixed(2)}
-            </p>
+        {/* Stop Price (conditional) */}
+        {orderType === "stop" && (
+          <div className="mb-6">
+            <label
+              htmlFor="stop-price"
+              className="block text-sm font-semibold text-primary mb-1"
+            >
+              Stop Price (USD) <span aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
+            </label>
+            <input
+              id="stop-price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={stopPrice}
+              onChange={(e) => setStopPrice(e.target.value)}
+              aria-describedby={
+                errors.stopPrice ? "stop-price-error" : undefined
+              }
+              aria-invalid={errors.stopPrice ? "true" : undefined}
+              className={`w-full min-h-[44px] px-3 py-2 rounded-md border ${
+                errors.stopPrice
+                  ? "border-feedback-error"
+                  : "border-border-default"
+              } bg-surface-base text-primary tabular-nums focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2`}
+            />
+            {errors.stopPrice && (
+              <p
+                id="stop-price-error"
+                className="text-sm text-feedback-error mt-1"
+                role="alert"
+              >
+                {errors.stopPrice}
+              </p>
+            )}
           </div>
         )}
 
-        {/* -------------------------------------------------------- */}
-        {/*  Disclosures                                             */}
-        {/* -------------------------------------------------------- */}
-        <div className="mb-6 space-y-2 text-xs text-muted">
+        {/* Cost Preview */}
+        {selectedHolding && quantityNum > 0 && (
+          <div className="mb-6 bg-surface-sunken rounded-lg p-4">
+            <h2 className="text-sm font-semibold text-primary mb-2">
+              Estimated Cost
+            </h2>
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted">Price per share</dt>
+                <dd className="tabular-nums text-primary">
+                  {formatCurrency(estimatedPrice)}
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">
+                  {amountType === "shares" ? "Shares" : "Est. shares"}
+                </dt>
+                <dd className="tabular-nums text-primary">
+                  {amountType === "shares"
+                    ? quantityNum
+                    : estimatedShares.toFixed(4)}
+                </dd>
+              </div>
+              <div className="flex justify-between border-t border-border-default pt-2 font-semibold">
+                <dt className="text-primary">Estimated total</dt>
+                <dd className="tabular-nums text-primary">
+                  {formatCurrency(estimatedTotal)}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        )}
+
+        {/* PFOF Disclosure */}
+        <div className="mb-6 p-3 bg-surface-sunken rounded-md text-xs text-muted">
           <p>
-            We don&apos;t accept payment for order flow on stock trades. We route
-            directly to exchanges.
-          </p>
-          <p>
-            Accrue is cash-only. We don&apos;t offer margin loans.
+            <strong>Payment for Order Flow (PFOF):</strong> Accrue may receive
+            compensation from market makers for routing your order. This means
+            your execution price may not always be the best available. All fees
+            will be shown on the review screen.
           </p>
         </div>
 
-        {/* -------------------------------------------------------- */}
-        {/*  Submit                                                  */}
-        {/* -------------------------------------------------------- */}
+        {/* Margin Disclaimer */}
+        <div className="mb-6 p-3 bg-surface-sunken rounded-md text-xs text-muted">
+          <p>
+            <strong>Margin trading is not available.</strong> All trades are
+            executed with settled cash in your account. You cannot lose more than
+            you invest.
+          </p>
+        </div>
+
+        {/* Submit */}
         <button
           type="submit"
-          className="w-full rounded-lg bg-action-primary px-6 py-3 text-sm font-semibold text-inverse hover:bg-action-primary-hover min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring transition-colors"
+          className="w-full min-h-[44px] px-6 py-3 rounded-md bg-action-primary text-inverse font-semibold text-base hover:bg-action-primary-hover focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
         >
           Review Order
         </button>
       </form>
-    </div>
+    </>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-muted">Loading trade form...</div>}>
+      <OrdersPageContent />
+    </Suspense>
   );
 }

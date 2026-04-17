@@ -1,121 +1,211 @@
 "use client";
 
+import React, { useId } from "react";
 import type { CopilotResponse, ConfidenceLevel } from "@/lib/copilot/types";
 
 interface AIResponseProps {
   response: CopilotResponse;
 }
 
-const CONFIDENCE_CONFIG: Record<
+const confidenceConfig: Record<
   ConfidenceLevel,
-  { icon: string; label: string; colorClass: string; borderStyle: string; srPrefix: string }
+  {
+    icon: string;
+    label: string;
+    srPrefix: string;
+    borderClass: string;
+    colorClass: string;
+    bgClass: string;
+  }
 > = {
   high: {
-    icon: "✓",
+    icon: "\u2713",
     label: "High confidence",
-    colorClass: "text-ai-confidence-high border-ai-confidence-high",
-    borderStyle: "border-solid",
-    srPrefix: "High confidence.",
+    srPrefix: "High confidence response.",
+    borderClass: "border-2 border-solid border-ai-confidence-high",
+    colorClass: "text-ai-confidence-high",
+    bgClass: "bg-ai-confidence-high/10",
   },
   moderate: {
-    icon: "ⓘ",
+    icon: "\u24D8",
     label: "Moderate confidence",
-    colorClass: "text-ai-confidence-medium border-ai-confidence-medium",
-    borderStyle: "border-dashed",
-    srPrefix: "Moderate confidence.",
+    srPrefix: "Moderate confidence response.",
+    borderClass: "border-2 border-dashed border-ai-confidence-medium",
+    colorClass: "text-ai-confidence-medium",
+    bgClass: "bg-ai-confidence-medium/10",
   },
   low: {
-    icon: "⚠",
+    icon: "\u26A0",
     label: "Low confidence",
-    colorClass: "text-ai-confidence-low border-ai-confidence-low",
-    borderStyle: "border-dotted",
-    srPrefix: "Low confidence.",
+    srPrefix: "Low confidence response. Consider verifying this information.",
+    borderClass: "border-2 border-dotted border-ai-confidence-low",
+    colorClass: "text-ai-confidence-low",
+    bgClass: "bg-ai-confidence-low/10",
   },
 };
 
 /**
- * AI response card with THREE mandatory trust signals per § 2.8:
+ * AIResponse — renders a single AI copilot response with three trust signals.
  *
- * 1. "AI" provenance badge — persistent, non-dismissible
- * 2. Confidence indicator — icon + word + color (redundantly encoded)
- *    Screen reader announces confidence FIRST, before the response
- * 3. Sources list — title, publisher, lastUpdated
+ * Trust signals (per CLAUDE.md A3.3 / design-system section 2.8):
+ * 1. AI provenance badge — always visible, tabIndex={0}, role="note"
+ * 2. Confidence indicator — icon + word + color + border style, SR announces confidence FIRST
+ * 3. Sources list — academic citations with title, publisher, date
  *
- * Visual: Confidence Ring border (solid/dashed/dotted per § 11.4)
+ * Low-confidence responses include a mandatory "Verify in Research" link (A3.4).
  */
-export function AIResponse({ response }: AIResponseProps) {
-  const config = CONFIDENCE_CONFIG[response.confidence];
+export default function AIResponse({ response }: AIResponseProps) {
+  const uniqueId = useId();
+  const config = confidenceConfig[response.confidence];
+  const contentId = `ai-response-content-${uniqueId}`;
 
   return (
     <article
-      /* a11y: aria-label provides the full context for screen readers:
-         confidence level first (per § 2.8), then "AI-generated" provenance */
-      aria-label={`AI-generated insight. ${config.srPrefix}`}
-      data-confidence={response.confidence}
-      className={`rounded-2xl border-[1.5px] ${config.borderStyle} ${config.colorClass} bg-surface-raised p-5`}
+      /* a11y: aria-label includes confidence prefix so screen readers announce confidence level when navigating by landmark */
+      aria-label={`${config.srPrefix} AI-generated response`}
+      className={[
+        "rounded-lg p-4",
+        config.borderClass,
+        "bg-surface-raised",
+      ].join(" ")}
     >
-      {/* Trust signal row: AI badge + Confidence indicator */}
-      <div className="flex items-center gap-3 mb-3">
-        {/* Trust signal 1: AI provenance badge — persistent, non-dismissible per § 2.8 */}
+      {/* Trust Signal 1: AI Provenance Badge */}
+      <div className="flex items-center justify-between mb-3">
         <span
-          /* a11y: aria-label announces "AI-generated" on focus */
-          aria-label="AI-generated"
-          tabIndex={0}
+          /* a11y: role="note" identifies this as supplementary information about the content source */
           role="note"
-          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-surface-overlay text-secondary border border-border-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
+          /* a11y: aria-label provides full accessible description of the provenance badge */
+          aria-label="AI-generated"
+          /* a11y: tabIndex={0} makes the badge focusable so keyboard users can discover it */
+          tabIndex={0}
+          className={[
+            "inline-flex items-center gap-1.5 px-2.5 py-1",
+            "rounded-full text-xs font-semibold",
+            "bg-surface-sunken text-secondary",
+            "min-h-[44px] min-w-[44px]",
+            "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+          ].join(" ")}
         >
-          AI
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            /* a11y: aria-hidden="true" because the badge text already conveys meaning */
+            aria-hidden="true"
+          >
+            <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M5 9.5L7 4.5L9 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="5.5" y1="8" x2="8.5" y2="8" stroke="currentColor" strokeWidth="1" />
+          </svg>
+          AI Generated
         </span>
 
-        {/* Trust signal 2: Confidence indicator — icon + word + color (redundant encoding per § 2.8) */}
+        {/* Trust Signal 2: Confidence Indicator */}
         <span
-          /* a11y: Full readable label for screen readers including icon meaning */
-          aria-label={config.label}
-          className={`inline-flex items-center gap-1.5 text-xs font-medium ${config.colorClass}`}
+          className={[
+            "inline-flex items-center gap-1.5 px-2.5 py-1",
+            "rounded-full text-xs font-semibold",
+            config.bgClass,
+            config.colorClass,
+            "min-h-[44px]",
+          ].join(" ")}
         >
-          <span aria-hidden="true">{config.icon}</span>
-          <span>{config.label}</span>
+          {/* a11y: sr-only prefix ensures screen readers announce confidence FIRST before the visual label */}
+          <span className="sr-only">{config.srPrefix}</span>
+          <span
+            /* a11y: aria-hidden="true" because the sr-only span above already conveys this information */
+            aria-hidden="true"
+          >
+            {config.icon}
+          </span>
+          <span
+            /* a11y: aria-hidden="true" to prevent double-reading since sr-only prefix covers it */
+            aria-hidden="true"
+          >
+            {config.label}
+          </span>
         </span>
       </div>
 
-      {/* Response content — screen reader gets confidence prefix FIRST per § 2.8 */}
-      <div className="text-sm leading-relaxed text-primary" style={{ fontFamily: "var(--font-serif)" }}>
-        {/* a11y: sr-only prefix ensures confidence is announced before content.
-            This is empirically justified — Ditaranto (2023) and Singh (2025) both
-            observe that a confidence signal placed after a claim is cognitively discounted. */}
-        <span className="sr-only">{config.srPrefix} </span>
-        <p>{response.content}</p>
+      {/* Response Content */}
+      <div id={contentId} className="text-sm text-primary leading-relaxed mb-4">
+        {response.content}
       </div>
 
-      {/* Trust signal 3: Sources list */}
+      {/* Low-confidence mandatory verification link (A3.4) */}
+      {response.confidence === "low" && (
+        <a
+          href="/research"
+          className={[
+            "inline-flex items-center gap-1 mb-4",
+            "min-h-[44px] px-3 py-2 rounded-lg",
+            "text-sm font-semibold",
+            "text-ai-confidence-low bg-ai-confidence-low/10",
+            "hover:bg-ai-confidence-low/20",
+            "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+          ].join(" ")}
+        >
+          Verify in Research
+          <span
+            /* a11y: aria-hidden="true" because it is a decorative arrow icon */
+            aria-hidden="true"
+          >
+            {" \u2192"}
+          </span>
+        </a>
+      )}
+
+      {/* Trust Signal 3: Sources List */}
       {response.sources.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-border-default">
-          <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+        <div className="border-t border-border-default pt-3">
+          <h4 className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
             Sources
           </h4>
-          <ul className="space-y-1">
+          <ul
+            className="list-none p-0 m-0 space-y-1"
+            /* a11y: aria-label identifies this list for screen reader users navigating by list landmark */
+            aria-label="Citation sources for this AI response"
+          >
             {response.sources.map((source, index) => (
-              <li key={source.id} className="text-xs text-muted">
-                <span className="text-secondary font-medium">[{index + 1}]</span>{" "}
-                {source.title} — {source.publisher},{" "}
-                <time dateTime={source.lastUpdated}>
-                  updated {source.lastUpdated}
+              <li
+                key={index}
+                className="text-xs text-secondary leading-relaxed"
+              >
+                {source.url ? (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={[
+                      "underline underline-offset-2",
+                      "hover:text-action-primary",
+                      "focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2",
+                      "min-h-[44px] inline-flex items-center",
+                    ].join(" ")}
+                  >
+                    {source.title}
+                    <span className="sr-only">
+                      {/* a11y: sr-only text warns screen reader users that this link opens in a new tab */}
+                      {" "}(opens in new tab)
+                    </span>
+                  </a>
+                ) : (
+                  <span className="font-medium">{source.title}</span>
+                )}
+                {" \u2014 "}
+                <span>{source.publisher}</span>
+                {", "}
+                <time dateTime={source.date}>
+                  {new Date(source.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
                 </time>
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {/* Low-confidence mandatory CTA per § 2.8 */}
-      {response.confidence === "low" && (
-        <div className="mt-3">
-          <a
-            href="/research"
-            className="inline-flex items-center gap-1 text-sm font-medium text-action-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring rounded min-h-[44px]"
-          >
-            Verify in Research →
-          </a>
         </div>
       )}
     </article>

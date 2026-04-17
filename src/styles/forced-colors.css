@@ -1,71 +1,98 @@
-/* ============================================================
-   Forced Colors (Windows High Contrast) overrides
-   Per § 11.1 and § 12.5 — every component audited under forced-colors.
-   ============================================================ */
+/**
+ * Forced colors (Windows High Contrast) overrides.
+ * Every component must be audited under @media (forced-colors: active)
+ * per CLAUDE.md A6.4.
+ *
+ * In forced-colors mode, the browser overrides all colors with system values.
+ * We ensure meaning-bearing visuals fall back correctly and borders/outlines
+ * remain visible.
+ */
 
 @media (forced-colors: active) {
-  /* Borders fall back to system CanvasText */
-  *,
-  *::before,
-  *::after {
-    border-color: CanvasText !important;
-  }
-
-  /* Backgrounds fall back to Canvas */
-  body,
-  main,
-  header,
-  footer,
-  aside,
-  section,
-  article {
-    background-color: Canvas !important;
-    color: CanvasText !important;
-  }
-
-  /* Focus indicators use Highlight */
+  /* ── Focus must always be visible ── */
   :focus-visible {
-    outline-color: Highlight !important;
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
   }
 
-  /* Buttons use ButtonText on ButtonFace */
+  /* ── Buttons get explicit borders ── */
   button,
-  [role="button"] {
-    background-color: ButtonFace !important;
-    color: ButtonText !important;
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"] {
     border: 1px solid ButtonText !important;
   }
 
-  button:hover,
-  [role="button"]:hover {
-    background-color: Highlight !important;
-    color: HighlightText !important;
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input:disabled {
+    color: GrayText !important;
+    border-color: GrayText !important;
   }
 
-  /* Links use LinkText */
-  a {
+  /* ── Links ── */
+  a,
+  [role="link"] {
     color: LinkText !important;
   }
 
-  /* Gain/loss signals — rely on text signs (+/−), not color */
+  a:visited {
+    color: VisitedText !important;
+  }
+
+  /* ── Financial signals: gain/loss must not rely on color alone ── */
   [data-signal="gain"],
-  [data-signal="loss"] {
+  [data-signal="loss"],
+  .gain-text,
+  .loss-text {
     color: CanvasText !important;
+    forced-color-adjust: auto;
   }
 
-  /* Chart elements */
-  svg line,
-  svg path,
-  svg rect,
-  svg circle {
-    stroke: CanvasText !important;
+  /* ── AI confidence indicators ── */
+  [data-confidence="high"],
+  [data-confidence="moderate"],
+  [data-confidence="low"] {
+    color: CanvasText !important;
+    border-color: CanvasText !important;
   }
 
-  svg text {
-    fill: CanvasText !important;
+  /* ── AI badge ── */
+  .ai-badge {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border: 1px solid CanvasText !important;
   }
 
-  /* Tables */
+  /* ── Form inputs ── */
+  input,
+  textarea,
+  select {
+    border: 1px solid ButtonText !important;
+    background: Field !important;
+    color: FieldText !important;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: GrayText !important;
+  }
+
+  /* ── Checkboxes and radio buttons ── */
+  input[type="checkbox"],
+  input[type="radio"] {
+    forced-color-adjust: auto;
+  }
+
+  /* ── Table borders ── */
   table,
   th,
   td {
@@ -73,41 +100,58 @@
   }
 
   th {
-    background-color: Canvas !important;
+    background: Canvas !important;
     color: CanvasText !important;
   }
 
-  /* Form elements */
-  input,
-  select,
-  textarea {
-    background-color: Field !important;
-    color: FieldText !important;
-    border-color: CanvasText !important;
-  }
-
-  /* Disabled elements */
-  [disabled],
-  [aria-disabled="true"] {
-    color: GrayText !important;
-    border-color: GrayText !important;
-  }
-
-  /* Confidence indicators — text only, no color coding */
-  [data-confidence] {
-    border-color: CanvasText !important;
-  }
-
-  /* Progress bars */
-  progress {
+  /* ── Cards and surfaces ── */
+  [role="region"],
+  [role="dialog"],
+  [role="alertdialog"] {
     border: 1px solid CanvasText !important;
   }
 
-  progress::-webkit-progress-bar {
-    background-color: Canvas !important;
+  /* ── Skip links ── */
+  .skip-link {
+    background: Canvas !important;
+    color: LinkText !important;
+    border: 2px solid ButtonText !important;
   }
 
-  progress::-webkit-progress-value {
-    background-color: Highlight !important;
+  /* ── Chart fallbacks ── */
+  svg {
+    forced-color-adjust: auto;
+  }
+
+  /* ── Dividers ── */
+  hr,
+  [role="separator"] {
+    border-color: CanvasText !important;
+  }
+
+  /* ── Tooltips ── */
+  [role="tooltip"] {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border: 1px solid CanvasText !important;
+  }
+
+  /* ── Progress bars and meters ── */
+  progress {
+    forced-color-adjust: auto;
+  }
+
+  /* ── Ensure tab panels have visible borders ── */
+  [role="tablist"] {
+    border-bottom: 1px solid CanvasText !important;
+  }
+
+  [role="tab"][aria-selected="true"] {
+    border: 1px solid CanvasText !important;
+    border-bottom-color: Canvas !important;
+  }
+
+  [role="tab"][aria-selected="false"] {
+    border: 1px solid transparent !important;
   }
 }
