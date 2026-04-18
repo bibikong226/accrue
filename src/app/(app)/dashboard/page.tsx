@@ -677,6 +677,15 @@ export default function DashboardPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border-default font-semibold">
+                  <th scope="row" className="py-2 text-left text-primary">Total</th>
+                  <td className="py-2 text-right tabular-nums text-primary">
+                    {formatCurrency(portfolioSummary.totalValue)}
+                  </td>
+                  <td className="py-2 text-right tabular-nums text-primary">100.0%</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
 

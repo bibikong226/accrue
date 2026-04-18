@@ -485,3 +485,36 @@ body {
     background: Canvas !important;
   }
 }
+
+/* ============================================================
+   Position summary <dl> grid — preserves dt/dd semantics § 5.4
+   ============================================================ */
+.position-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 20px;
+  padding: 16px 0;
+  margin: 0;
+}
+.position-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.position-summary dt {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.position-summary dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.position-summary dd.numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
