@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { mockPortfolio } from "@/data/mockPortfolio";
+import { holdings as allHoldings, portfolio } from "@/data/mockPortfolio";
 
 export type TradeAction = "buy" | "sell";
 type Step = "amount" | "type" | "review" | "done";
@@ -34,11 +34,11 @@ export function TradeFlow({
   const [submitting, setSubmitting] = useState(false);
   const liveRegionRef = useRef<HTMLDivElement>(null);
 
-  const holding = mockPortfolio.holdings?.find(h => h.symbol === symbol);
+  const holding = allHoldings?.find(h => h.symbol === symbol);
   const price = holding?.currentPrice ?? 100;
   const name = holding?.name ?? symbol;
-  const cash = mockPortfolio.portfolio?.cashBalance ?? 0;
-  const portfolioValue = mockPortfolio.portfolio?.totalValue ?? 1;
+  const cash = portfolio.cashBalance ?? 0;
+  const portfolioValue = portfolio.totalValue ?? 1;
   const ownsIt = !!holding;
 
   const amountNum = parseFloat(amount) || 0;
@@ -97,9 +97,9 @@ export function TradeFlow({
 
       <div className="trade-flow__stepper" aria-label="Trade progress">
         <ol>
-          <li aria-current={step === "amount" ? "step" : undefined} className={step === "amount" ? "active" : (step !== "amount" ? "done" : "")}>1. Amount</li>
-          <li aria-current={step === "type" ? "step" : undefined} className={step === "type" ? "active" : (step === "review" || step === "done" ? "done" : "")}>2. Type</li>
-          <li aria-current={step === "review" ? "step" : undefined} className={step === "review" ? "active" : (step === "done" ? "done" : "")}>3. Review</li>
+          <li aria-current={step === "amount" ? "step" : undefined} className={step === "amount" ? "active" : "done"}>1. Amount</li>
+          <li aria-current={step === "type" ? "step" : undefined} className={step === "type" ? "active" : (step === "review" || step === "done") ? "done" : ""}>2. Type</li>
+          <li aria-current={step === "review" ? "step" : undefined} className={step === "review" ? "active" : step === "done" ? "done" : ""}>3. Review</li>
         </ol>
       </div>
 

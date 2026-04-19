@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { mockPortfolio } from "@/data/mockPortfolio";
+import { holdings } from "@/data/mockPortfolio";
 
 export default function TradeSearchPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
 
   const allTickers = [
-    ...(mockPortfolio.holdings ?? []),
-    ...((mockPortfolio as any).watchlist ?? []),
+    ...(holdings ?? []),
   ];
   const unique = Array.from(new Map(allTickers.map(t => [t.symbol, t])).values());
 

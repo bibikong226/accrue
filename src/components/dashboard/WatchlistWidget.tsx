@@ -1,14 +1,14 @@
 "use client";
 
 import { useTrade } from "@/components/trade/TradeContext";
-import { mockPortfolio } from "@/data/mockPortfolio";
+import { holdings } from "@/data/mockPortfolio";
 
 export function WatchlistWidget() {
   const { openTrade } = useTrade();
-  const watchlist = (mockPortfolio as any).watchlist ?? [];
-  const holdings = mockPortfolio.holdings ?? [];
+  const watchlist: any[] = [];
+  const allHoldings = holdings ?? [];
 
-  const ownedSymbols = new Set(holdings.map(h => h.symbol));
+  const ownedSymbols = new Set(allHoldings.map(h => h.symbol));
 
   if (watchlist.length === 0) {
     return (
