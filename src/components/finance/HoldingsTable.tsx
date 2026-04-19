@@ -4,6 +4,7 @@ import React, { useState, useCallback, useId } from "react";
 import Link from "next/link";
 import type { Holding } from "@/data/mockPortfolio";
 import { announce } from "@/lib/a11y/useAnnouncer";
+import { useTrade } from "@/components/trade/TradeContext";
 
 /* ─── Types ─── */
 
@@ -58,6 +59,7 @@ function formatSignedCurrency(value: number): string {
  * - Color is never the sole channel: direction arrows + sign always present
  */
 export default function HoldingsTable({ holdings }: HoldingsTableProps) {
+  const { openTrade } = useTrade();
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("none");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -428,19 +430,23 @@ export default function HoldingsTable({ holdings }: HoldingsTableProps) {
                           </dd>
                         </div>
                       </dl>
-                      <div className="flex gap-2 mt-4">
-                        <Link
-                          href={`/orders?symbol=${holding.symbol}&action=buy`}
-                          className="inline-flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md bg-action-primary text-inverse font-medium text-sm hover:bg-action-primary-hover focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                      <div className="flex gap-2 mt-4" role="group" aria-label={`Actions for ${holding.symbol}`}>
+                        <button
+                          type="button"
+                          onClick={() => openTrade(holding.symbol, "buy")}
+                          className="btn btn--buy inline-flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md font-medium text-sm focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                          aria-label={`Buy more ${holding.symbol}`}
                         >
-                          Buy {holding.symbol}
-                        </Link>
-                        <Link
-                          href={`/orders?symbol=${holding.symbol}&action=sell`}
-                          className="inline-flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md border border-border-default text-primary font-medium text-sm hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                          Buy more {holding.symbol}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openTrade(holding.symbol, "sell")}
+                          className="btn btn--ghost inline-flex items-center min-h-[44px] min-w-[44px] px-4 py-2 rounded-md font-medium text-sm focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                          aria-label={`Sell ${holding.symbol}`}
                         >
                           Sell {holding.symbol}
-                        </Link>
+                        </button>
                       </div>
                     </td>
                   </tr>

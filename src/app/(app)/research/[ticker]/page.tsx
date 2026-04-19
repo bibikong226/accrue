@@ -17,6 +17,7 @@ import {
 import { glossaryByKey as glossary } from "@/data/glossary";
 import { announce } from "@/lib/a11y/useAnnouncer";
 import Tabs from "@/components/ui/Tabs";
+import { useTrade } from "@/components/trade/TradeContext";
 
 /* ─── Sub-nav tabs ─── */
 const TABS = ["Overview", "Fundamentals", "Analysts", "Earnings", "News"] as const;
@@ -150,6 +151,7 @@ export default function ResearchDetailPage() {
   const params = useParams();
   const ticker = (params.ticker as string).toUpperCase();
   const holding = holdings.find((h) => h.symbol === ticker);
+  const { openTrade } = useTrade();
 
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
 
@@ -255,31 +257,36 @@ export default function ResearchDetailPage() {
               </div>
             </dl>
             <div className="flex gap-2">
-              <Link
-                href={`/orders?symbol=${ticker}&action=buy`}
-                className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md bg-action-primary text-inverse font-medium hover:bg-action-primary-hover focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+              <button
+                type="button"
+                onClick={() => openTrade(ticker, "buy")}
+                className="btn btn--buy inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md font-medium focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                aria-label={`Buy ${ticker}`}
               >
                 Buy {ticker}
-              </Link>
+              </button>
               {holding ? (
-                <Link
-                  href={`/orders?symbol=${ticker}&action=sell`}
-                  className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md border border-border-default text-primary font-medium hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                <button
+                  type="button"
+                  onClick={() => openTrade(ticker, "sell")}
+                  className="btn btn--ghost inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md font-medium focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"
+                  aria-label={`Sell ${ticker}`}
                 >
                   Sell {ticker}
-                </Link>
+                </button>
               ) : (
-                <span
-                  role="link"
+                <button
+                  type="button"
+                  disabled
                   aria-disabled="true"
                   aria-describedby="sell-disabled-reason"
-                  className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md border border-border-default text-muted font-medium cursor-not-allowed opacity-50"
+                  className="btn btn--ghost inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md font-medium opacity-50 cursor-not-allowed"
                 >
                   Sell {ticker}
                   <span id="sell-disabled-reason" className="sr-only">
                     You do not own shares of {ticker}. Buy shares first to sell.
                   </span>
-                </span>
+                </button>
               )}
               <button
                 className="inline-flex items-center min-h-[44px] min-w-[44px] px-6 py-2 rounded-md border border-border-default text-secondary font-medium hover:bg-surface-sunken focus-visible:outline-3 focus-visible:outline-focus-ring focus-visible:outline-offset-2"

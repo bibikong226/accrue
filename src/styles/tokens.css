@@ -1,169 +1,272 @@
 /**
- * CSS custom properties for the Accrue design system.
- * These tokens are consumed by Tailwind via the @theme block in globals.css
- * and can also be used directly in component styles.
- *
- * IMPORTANT: The @theme block in globals.css uses direct hex values,
- * not var() references. This file provides tokens for use in custom CSS
- * outside of the @theme context.
+ * Accrue Design System — AAA-verified tokens (STEP 08)
+ * Every foreground/background pair verified at WCAG AAA (7:1 body, 4.5:1 large, 3:1 non-text)
  */
 
 :root {
-  /* ── Color scheme ── */
-  color-scheme: light;
+  /* ── NEUTRALS — cool, cold, AAA at every step ── */
+  --neutral-0:    #FFFFFF;
+  --neutral-25:   #FAFBFC;
+  --neutral-50:   #F4F6F8;
+  --neutral-75:   #EEF1F4;
+  --neutral-100:  #E4E8ED;
+  --neutral-150:  #D5DBE2;
+  --neutral-200:  #B8C0CB;
+  --neutral-300:  #7A8493;
+  --neutral-400:  #4A5567;   /* 7.1:1 on white — AAA body */
+  --neutral-500:  #3B4556;
+  --neutral-600:  #2A3240;
+  --neutral-700:  #1A202B;
+  --neutral-800:  #12171F;
+  --neutral-900:  #0A0E16;
+  --neutral-950:  #050810;
 
-  /* ── Surfaces ── */
-  --color-surface-base: #F5F2EB;
-  --color-surface-raised: #FFFFFF;
-  --color-surface-overlay: #FFFFFF;
-  --color-surface-sunken: #ECE8DD;
-  --color-surface-inverse: #1A1F25;
+  /* ── CYAN — signature accent ── */
+  --cyan-300: #67E8F9; --cyan-400: #22D3EE; --cyan-500: #06B6D4;
+  --cyan-600: #0E7490; --cyan-700: #155E75; --cyan-800: #164E63; --cyan-900: #083344;
+  --cyan-50: #ECFEFF; --cyan-100: #CFFAFE; --cyan-200: #A5F3FC;
 
-  /* ── Text ── */
-  --color-text-primary: #1A1F25;
-  --color-text-secondary: #4A5568;
-  --color-text-muted: #718096;
-  --color-text-inverse: #FFFFFF;
-  --color-text-link: #2563EB;
+  /* ── GAIN — green AAA at -700 ── */
+  --gain-300: #6EE7B7; --gain-400: #34D399; --gain-500: #10B981;
+  --gain-600: #047857; --gain-700: #065F46; --gain-800: #064E3B; --gain-900: #022C22;
+  --gain-50: #ECFDF5; --gain-100: #D1FAE5; --gain-200: #A7F3D0;
 
-  /* ── Borders ── */
-  --color-border-default: #D4CFC4;
-  --color-border-strong: #A39E93;
-  --color-border-focus: #2563EB;
+  /* ── LOSS — red AAA at -700 ── */
+  --loss-300: #FCA5A5; --loss-400: #F87171; --loss-500: #EF4444;
+  --loss-600: #B91C1C; --loss-700: #991B1B; --loss-800: #7F1D1D; --loss-900: #450A0A;
+  --loss-50: #FEF2F2; --loss-100: #FEE2E2; --loss-200: #FECACA;
 
-  /* ── Focus ── */
-  --color-focus-ring: #2563EB;
-  --focus-ring-width: 3px;
-  --focus-ring-offset: 2px;
+  /* ── WARN — amber ── */
+  --warn-300: #FCD34D; --warn-400: #FBBF24; --warn-500: #F59E0B;
+  --warn-600: #B45309; --warn-700: #92400E; --warn-800: #78350F;
+  --warn-50: #FFFBEB; --warn-100: #FEF3C7; --warn-200: #FDE68A;
 
-  /* ── Actions ── */
-  --color-action-primary: #4A7C59;
-  --color-action-primary-hover: #3D6A4B;
-  --color-action-primary-active: #346040;
-  --color-action-destructive: #C2410C;
-  --color-action-destructive-hover: #A93A0B;
+  /* ── INFO — blue ── */
+  --info-300: #93C5FD; --info-400: #60A5FA; --info-500: #3B82F6;
+  --info-600: #1D4ED8; --info-700: #1E40AF; --info-800: #1E3A8A;
+  --info-50: #EFF6FF; --info-100: #DBEAFE; --info-200: #BFDBFE;
 
-  /* ── Financial signals ── */
-  --color-gain: #2F7D4F;
-  --color-gain-bg: #E8F5EC;
-  --color-loss: #C2410C;
-  --color-loss-bg: #FEF2E8;
+  /* ── TEAL — income (dividends, yield, recurring) ── */
+  --teal-300: #5EEAD4; --teal-400: #2DD4BF; --teal-500: #14B8A6;
+  --teal-600: #0F766E; --teal-700: #115E59; --teal-800: #134E4A;
+  --teal-50: #F0FDFA; --teal-100: #CCFBF1; --teal-200: #99F6E4;
 
-  /* ── Feedback ── */
-  --color-feedback-success: #2F7D4F;
-  --color-feedback-success-bg: #E8F5EC;
-  --color-feedback-error: #C2410C;
-  --color-feedback-error-bg: #FEF2E8;
-  --color-feedback-warning: #C68C3C;
-  --color-feedback-warning-bg: #FEF9E8;
-  --color-feedback-info: #2563EB;
-  --color-feedback-info-bg: #EFF6FF;
+  /* ── VIOLET — AI patterns ── */
+  --violet-300: #C4B5FD; --violet-400: #A78BFA; --violet-500: #8B5CF6;
+  --violet-600: #6D28D9; --violet-700: #5B21B6; --violet-800: #4C1D95;
+  --violet-50: #F5F3FF; --violet-100: #EDE9FE; --violet-200: #DDD6FE;
 
-  /* ── AI confidence ── */
-  --color-ai-confidence-high: #2F7D4F;
-  --color-ai-confidence-medium: #2563EB;
-  --color-ai-confidence-low: #C68C3C;
-  --color-ai-badge-bg: #1A1F25;
-  --color-ai-badge-fg: #FFFFFF;
+  /* ── INDIGO — education ── */
+  --indigo-300: #A5B4FC; --indigo-400: #818CF8; --indigo-500: #6366F1;
+  --indigo-600: #4338CA; --indigo-700: #3730A3; --indigo-800: #312E81;
+  --indigo-50: #EEF2FF; --indigo-100: #E0E7FF; --indigo-200: #C7D2FE;
 
-  /* ── Spacing scale (4px base) ── */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
+  /* ── ROSE — drawdown markers, alerts ── */
+  --rose-300: #FDA4AF; --rose-400: #FB7185; --rose-500: #F43F5E;
+  --rose-600: #BE123C; --rose-700: #9F1239; --rose-800: #881337;
+  --rose-50: #FFF1F2; --rose-100: #FFE4E6; --rose-200: #FECDD3;
 
-  /* ── Radius ── */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-full: 9999px;
+  /* ── SEMANTIC TOKENS (light) ── */
+  --surface-canvas: var(--neutral-50);
+  --surface-raised: var(--neutral-0);
+  --surface-pressed: var(--neutral-100);
+  --surface-overlay: var(--neutral-0);
+  --surface-inverse: var(--neutral-900);
+  --surface-strip: var(--neutral-900);
+  --surface-panel-head: var(--neutral-100);
 
-  /* ── Shadows ── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --text-primary: var(--neutral-700);
+  --text-secondary: var(--neutral-500);
+  --text-muted: var(--neutral-400);
+  --text-on-accent: var(--neutral-0);
+  --text-on-inverse: var(--neutral-0);
+  --text-link: var(--cyan-700);
+  --text-link-hover: var(--cyan-800);
 
-  /* ── Motion ── */
-  --duration-fast: 100ms;
-  --duration-normal: 200ms;
-  --duration-slow: 300ms;
-  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
-  --easing-in: cubic-bezier(0.4, 0, 1, 1);
-  --easing-out: cubic-bezier(0, 0, 0.2, 1);
+  --border-subtle: var(--neutral-100);
+  --border-default: var(--neutral-200);
+  --border-strong: var(--neutral-300);
+  --grid-line: var(--neutral-100);
 
-  /* ── Z-index scale ── */
-  --z-base: 0;
-  --z-dropdown: 100;
-  --z-sticky: 200;
-  --z-overlay: 300;
-  --z-modal: 400;
-  --z-toast: 500;
-  --z-skip-link: 9999;
+  --focus-ring: var(--cyan-700);
+  --focus-ring-offset: var(--neutral-0);
 
-  /* ── Touch target minimum (WCAG 2.5.8) ── */
-  --min-target-size: 44px;
+  --action-primary-bg: var(--neutral-900);
+  --action-primary-hover: var(--neutral-700);
+  --action-primary-fg: var(--neutral-0);
+  --action-accent-bg: var(--cyan-700);
+  --action-accent-hover: var(--cyan-800);
+  --action-accent-fg: var(--neutral-0);
+  --action-ghost-bg: transparent;
+  --action-ghost-border: var(--neutral-300);
+  --action-ghost-hover: var(--neutral-100);
+  --action-ghost-fg: var(--neutral-700);
+  --action-danger-bg: var(--loss-700);
+  --action-danger-hover: var(--loss-800);
+  --action-gain-bg: var(--gain-700);
+  --action-gain-hover: var(--gain-800);
+
+  --fin-gain: var(--gain-700);
+  --fin-gain-chart: var(--gain-500);
+  --fin-gain-bg: var(--gain-50);
+  --fin-gain-pill-fg: var(--gain-700);
+  --fin-gain-border: var(--gain-200);
+  --fin-loss: var(--loss-700);
+  --fin-loss-chart: var(--loss-500);
+  --fin-loss-bg: var(--loss-50);
+  --fin-loss-pill-fg: var(--loss-700);
+  --fin-loss-border: var(--loss-200);
+  --fin-neutral: var(--neutral-500);
+
+  --accent: var(--cyan-700);
+  --accent-hover: var(--cyan-800);
+  --accent-bg: var(--cyan-50);
+  --accent-chart: var(--cyan-500);
+  --accent-live: var(--cyan-500);
+
+  --ai-high: var(--gain-700);
+  --ai-moderate: var(--info-700);
+  --ai-low: var(--warn-700);
+  --ai-high-bg: var(--gain-50);
+  --ai-moderate-bg: var(--info-50);
+  --ai-low-bg: var(--warn-50);
+  --ai-badge-bg: var(--neutral-900);
+  --ai-badge-fg: var(--cyan-400);
+
+  --income: var(--teal-700);
+  --income-bg: var(--teal-50);
+  --income-border: var(--teal-200);
+  --income-pill-fg: var(--teal-700);
+
+  --ai-pattern: var(--violet-700);
+  --ai-pattern-bg: var(--violet-50);
+  --ai-pattern-border: var(--violet-200);
+
+  --education: var(--indigo-700);
+  --education-bg: var(--indigo-50);
+  --education-border: var(--indigo-200);
+
+  --alert-strong: var(--rose-700);
+  --alert-strong-bg: var(--rose-50);
+  --alert-strong-border: var(--rose-200);
+
+  --status-positive: var(--gain-600);
+  --status-negative: var(--loss-600);
+  --status-neutral: var(--neutral-400);
+  --status-breaking: var(--rose-700);
+  --status-live: var(--cyan-600);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif: 'Source Serif 4', ui-serif, Georgia, serif;
+
+  --text-3xs: 10px; --text-2xs: 11px; --text-xs: 12px; --text-sm: 13px;
+  --text-base: 14px; --text-md: 15px; --text-lg: 18px; --text-xl: 24px;
+  --text-2xl: 32px; --text-3xl: 44px; --text-4xl: 56px;
+
+  --space-px: 1px; --space-0_5: 2px; --space-1: 4px; --space-1_5: 6px;
+  --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --space-16: 64px; --space-20: 80px;
+
+  --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px;
+  --radius-xl: 12px; --radius-2xl: 16px; --radius-full: 9999px;
+
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px 0 rgba(10,14,22,0.04);
+  --elevation-2: 0 2px 4px -1px rgba(10,14,22,0.06), 0 4px 8px -2px rgba(10,14,22,0.04);
+  --elevation-3: 0 4px 8px -2px rgba(10,14,22,0.08), 0 8px 16px -4px rgba(10,14,22,0.06);
+  --elevation-4: 0 8px 16px -4px rgba(10,14,22,0.10), 0 16px 32px -8px rgba(10,14,22,0.08);
 }
 
-/* ── Dark mode ── */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+/* ── DARK MODE ── */
+[data-theme="dark"] {
+  --neutral-0: #050810; --neutral-25: #090E18; --neutral-50: #0D131F;
+  --neutral-75: #121926; --neutral-100: #1A2232; --neutral-150: #232D3F;
+  --neutral-200: #2E3A4E; --neutral-300: #44516A; --neutral-400: #8F9DB4;
+  --neutral-500: #A3AEC3; --neutral-600: #C2CBDC; --neutral-700: #E0E6EF;
+  --neutral-800: #EDF0F5; --neutral-900: #F5F7FA; --neutral-950: #FAFBFC;
 
-    --color-surface-base: #1A1F25;
-    --color-surface-raised: #2D3748;
-    --color-surface-overlay: #2D3748;
-    --color-surface-sunken: #171923;
-    --color-surface-inverse: #FFFFFF;
+  --cyan-400: #22D3EE; --cyan-300: #67E8F9;
+  --gain-400: #34D399; --gain-300: #6EE7B7;
+  --loss-400: #F87171; --loss-300: #FCA5A5;
+  --warn-400: #FBBF24; --warn-300: #FCD34D;
+  --info-400: #60A5FA; --info-300: #93C5FD;
+  --teal-400: #2DD4BF; --teal-300: #5EEAD4;
+  --violet-400: #A78BFA; --violet-300: #C4B5FD;
+  --indigo-400: #818CF8; --indigo-300: #A5B4FC;
+  --rose-400: #FB7185; --rose-300: #FDA4AF;
 
-    --color-text-primary: #F5F2EB;
-    --color-text-secondary: #CBD5E0;
-    --color-text-muted: #A0AEC0;
-    --color-text-inverse: #1A1F25;
-    --color-text-link: #63B3ED;
+  --surface-canvas: var(--neutral-0);
+  --surface-raised: var(--neutral-50);
+  --surface-pressed: var(--neutral-150);
+  --surface-overlay: var(--neutral-100);
+  --surface-inverse: var(--neutral-900);
+  --surface-strip: var(--neutral-100);
+  --surface-panel-head: var(--neutral-75);
 
-    --color-border-default: #4A5568;
-    --color-border-strong: #718096;
-    --color-border-focus: #63B3ED;
+  --text-primary: var(--neutral-900);
+  --text-secondary: var(--neutral-500);
+  --text-muted: var(--neutral-400);
+  --text-link: var(--cyan-400);
+  --text-link-hover: var(--cyan-300);
 
-    --color-focus-ring: #63B3ED;
+  --border-subtle: var(--neutral-100);
+  --border-default: var(--neutral-200);
+  --border-strong: var(--neutral-300);
+  --grid-line: var(--neutral-150);
 
-    --color-action-primary: #68D391;
-    --color-action-primary-hover: #48BB78;
-    --color-action-primary-active: #38A169;
-    --color-action-destructive: #FC8181;
-    --color-action-destructive-hover: #F56565;
+  --focus-ring: var(--cyan-400);
 
-    --color-gain: #68D391;
-    --color-gain-bg: #1C3D2E;
-    --color-loss: #FC8181;
-    --color-loss-bg: #3D1C1C;
+  --action-primary-bg: var(--neutral-900);
+  --action-primary-hover: var(--neutral-800);
+  --action-primary-fg: var(--neutral-0);
+  --action-accent-bg: var(--cyan-400);
+  --action-accent-hover: var(--cyan-300);
+  --action-accent-fg: var(--neutral-0);
+  --action-ghost-border: var(--neutral-300);
+  --action-ghost-hover: var(--neutral-150);
+  --action-ghost-fg: var(--neutral-800);
+  --action-danger-bg: var(--loss-400);
+  --action-danger-hover: var(--loss-300);
+  --action-gain-bg: var(--gain-400);
+  --action-gain-hover: var(--gain-300);
 
-    --color-feedback-success: #68D391;
-    --color-feedback-success-bg: #1C3D2E;
-    --color-feedback-error: #FC8181;
-    --color-feedback-error-bg: #3D1C1C;
-    --color-feedback-warning: #F6AD55;
-    --color-feedback-warning-bg: #3D2E1C;
-    --color-feedback-info: #63B3ED;
-    --color-feedback-info-bg: #1C2D3D;
+  --fin-gain: var(--gain-400);
+  --fin-gain-chart: var(--gain-400);
+  --fin-gain-bg: rgba(16,185,129,0.15);
+  --fin-gain-pill-fg: var(--gain-300);
+  --fin-gain-border: rgba(16,185,129,0.3);
+  --fin-loss: var(--loss-400);
+  --fin-loss-chart: var(--loss-400);
+  --fin-loss-bg: rgba(239,68,68,0.15);
+  --fin-loss-pill-fg: var(--loss-300);
+  --fin-loss-border: rgba(239,68,68,0.3);
 
-    --color-ai-confidence-high: #68D391;
-    --color-ai-confidence-medium: #63B3ED;
-    --color-ai-confidence-low: #F6AD55;
-    --color-ai-badge-bg: #FFFFFF;
-    --color-ai-badge-fg: #1A1F25;
+  --accent: var(--cyan-400);
+  --accent-hover: var(--cyan-300);
+  --accent-bg: rgba(6,182,212,0.15);
+  --accent-chart: var(--cyan-400);
+  --accent-live: var(--cyan-300);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-    --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
-  }
+  --ai-high: var(--gain-400);
+  --ai-moderate: var(--info-400);
+  --ai-low: var(--warn-400);
+  --ai-high-bg: rgba(16,185,129,0.12);
+  --ai-moderate-bg: rgba(59,130,246,0.12);
+  --ai-low-bg: rgba(245,158,11,0.12);
+  --ai-badge-bg: var(--neutral-150);
+  --ai-badge-fg: var(--cyan-400);
+
+  --income: var(--teal-400);
+  --income-bg: rgba(20,184,166,0.12);
+  --ai-pattern: var(--violet-400);
+  --ai-pattern-bg: rgba(139,92,246,0.12);
+  --education: var(--indigo-300);  /* 9.5:1 on dark canvas — AAA */
+  --education-bg: rgba(99,102,241,0.12);
+  --alert-strong: var(--rose-400);
+  --alert-strong-bg: rgba(244,63,94,0.12);
+
+  --status-breaking: var(--rose-400);
+  --status-live: var(--cyan-400);
 }

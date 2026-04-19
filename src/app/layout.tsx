@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import "@/components/trade/trade-slideover.css";
+import { TradeProvider } from "@/components/trade/TradeContext";
 
 /* § 11.2 Typography — Inter for UI, JetBrains Mono for financial numbers,
    Source Serif 4 for long-form reading (copilot responses, research explainers) */
@@ -62,7 +64,7 @@ export default function RootLayout({
           className="sr-only"
         />
 
-        {children}
+        <TradeProvider>{children}</TradeProvider>
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import {
 } from "@/data/mockPortfolio";
 import ChartWrapper from "@/components/chart/ChartWrapper";
 import AIResponse from "@/components/copilot/AIResponse";
+import { WatchlistWidget } from "@/components/dashboard/WatchlistWidget";
 import { fixturesById } from "@/data/copilotFixtures";
 import {
   formatCurrency,
@@ -953,6 +954,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* ─── Section 6B: Watchlist ─── */}
+      <WatchlistWidget />
 
       {/* ─── Section 7: News Feed ─── */}
       <section aria-labelledby="news-heading" className="mb-6">
