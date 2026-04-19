@@ -45,21 +45,22 @@
   --color-grid-line: #232D3F;
 
   /* ── Focus — cyan-400 for dark-mode visibility (8.2:1 on canvas) § v5 ── */
-  --color-focus-ring: #22D3EE;
+  /* Focus ring — cyan-700 for AAA contrast (7.3:1 on white) */
+  --color-focus-ring: #155E75;
 
   /* ── Accent — cyan-500 signature § v5 ── */
-  --color-accent: #06B6D4;
-  --color-accent-hover: #22D3EE;
+  --color-accent: #155E75;
+  --color-accent-hover: #155E75;
   --color-accent-bg: rgba(6, 182, 212, 0.15);
-  --color-accent-chart: #22D3EE;
+  --color-accent-chart: #155E75;
   --color-accent-live: #67E8F9;
 
   /* ── Actions (Dark default) § v5 ── */
   --color-action-primary: #F1F5F9;
   --color-action-primary-hover: #E2E8F0;
   --color-action-primary-fg: #050810;
-  --color-action-accent-bg: #06B6D4;
-  --color-action-accent-hover: #22D3EE;
+  --color-action-accent-bg: #155E75;
+  --color-action-accent-hover: #155E75;
   --color-action-accent-fg: #050810;
   --color-action-ghost-fg: #E2E8F0;
   --color-action-ghost-hover: #232D3F;
@@ -102,6 +103,7 @@
   --color-ai-moderate-bg: rgba(59, 130, 246, 0.12);
   --color-ai-low-bg: rgba(245, 158, 11, 0.12);
   --color-ai-badge-bg: #232D3F;
+  /* AI badge text is bright cyan on dark chip — 8.4:1 AAA on #0A0E16 */
   --color-ai-badge-fg: #22D3EE;
 
   /* ── Status § v5 ── */
@@ -109,7 +111,7 @@
   --color-status-negative: #EF4444;
   --color-status-neutral: #5F6D88;
   --color-status-breaking: #F87171;
-  --color-status-live: #22D3EE;
+  --color-status-live: #155E75;
 
   /* ── Warn / Info / Violet § v5 ── */
   --color-warn: #F59E0B;
@@ -173,17 +175,17 @@
   top: 0;
   padding: 12px 24px;
   background: #0D131F;
-  color: #22D3EE;
+  color: #155E75;
   font-weight: 600;
   font-size: 14px;
   text-decoration: underline;
-  border: 2px solid #22D3EE;
+  border: 2px solid #155E75;
   border-radius: 0 0 8px 0;
   z-index: 9999;
 }
 .skip-link:focus {
   left: 0;
-  outline: 3px solid #22D3EE;
+  outline: 3px solid #155E75;
   outline-offset: 2px;
 }
 
@@ -232,7 +234,7 @@ input[inputmode="decimal"], input[type="number"],
    ============================================================ */
 :focus { outline: none; }
 :focus-visible {
-  outline: 3px solid #22D3EE;
+  outline: 3px solid #155E75;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -278,7 +280,7 @@ body {
 }
 
 ::selection {
-  background: #06B6D4;
+  background: #155E75;
   color: #050810;
 }
 
@@ -527,7 +529,7 @@ body {
 }
 .btn--buy:hover:not(:disabled) { background: #047857; }
 .btn--buy:focus-visible {
-  outline: 3px solid #06B6D4;
+  outline: 3px solid #155E75;
   outline-offset: 2px;
 }
 
@@ -569,8 +571,8 @@ body {
   cursor: pointer; margin-bottom: -1px;
 }
 .tab:hover { color: var(--text-primary, #1E242E); background: var(--surface-pressed, #E4E8ED); }
-.tab:focus-visible { outline: 3px solid #06B6D4; outline-offset: -1px; border-radius: 4px; }
-.tab--active { color: var(--text-primary, #1E242E); border-bottom-color: #06B6D4; }
+.tab:focus-visible { outline: 3px solid #155E75; outline-offset: -1px; border-radius: 4px; }
+.tab--active { color: var(--text-primary, #1E242E); border-bottom-color: #155E75; }
 
 /* ── AICard — Pattern 3 § 4.2 ── */
 .ai-card__head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -615,7 +617,7 @@ button.lever-card {
   cursor: pointer;
 }
 button.lever-card:focus-visible {
-  outline: 3px solid #06B6D4;
+  outline: 3px solid #155E75;
   outline-offset: 2px;
 }
 
@@ -636,9 +638,9 @@ button.lever-card:focus-visible {
 .watchlist-table .actions-col { text-align: right; width: 140px; }
 .watchlist-table .actions-cell { text-align: right; white-space: nowrap; }
 .watchlist-table .actions-cell .btn { margin-left: 6px; }
-.ticker-link { color: #0891B2; text-decoration: none; font-family: var(--font-mono); }
+.ticker-link { color: #155E75; text-decoration: none; font-family: var(--font-mono); }
 .ticker-link:hover { text-decoration: underline; }
-.ticker-link:focus-visible { outline: 2px solid #06B6D4; outline-offset: 2px; border-radius: 2px; }
+.ticker-link:focus-visible { outline: 2px solid #155E75; outline-offset: 2px; border-radius: 2px; }
 .btn--small { padding: 6px 12px; font-size: 12px; min-width: 56px; }
 .empty-state { color: var(--text-muted, #5E6876); font-size: 14px; padding: 24px 0; text-align: center; }
 
@@ -651,20 +653,20 @@ button.lever-card:focus-visible {
 .trade-page__breadcrumb { margin-bottom: 24px; }
 .trade-page__breadcrumb ol { display: flex; gap: 8px; list-style: none; padding: 0; margin: 0; font-size: 13px; color: var(--text-muted, #5E6876); }
 .trade-page__breadcrumb li + li::before { content: "/ "; margin-right: 8px; }
-.trade-page__breadcrumb a { color: #0891B2; text-decoration: none; }
+.trade-page__breadcrumb a { color: #155E75; text-decoration: none; }
 .trade-page__breadcrumb a:hover { text-decoration: underline; }
-.trade-page__breadcrumb a:focus-visible { outline: 2px solid #06B6D4; outline-offset: 2px; border-radius: 2px; }
+.trade-page__breadcrumb a:focus-visible { outline: 2px solid #155E75; outline-offset: 2px; border-radius: 2px; }
 .trade-page__breadcrumb [aria-current="page"] { color: var(--text-primary, #1E242E); font-weight: 500; }
 .trade-search-label { display: block; }
 .trade-search-input { width: 100%; padding: 16px 20px; font-size: 18px; border: 1px solid var(--border-default, #D5DBE2); border-radius: 8px; background: var(--surface-raised, #fff); }
-.trade-search-input:focus-visible { outline: none; border-color: #06B6D4; border-width: 2px; padding: 15px 19px; }
+.trade-search-input:focus-visible { outline: none; border-color: #155E75; border-width: 2px; padding: 15px 19px; }
 .trade-search-help { font-size: 13px; color: var(--text-muted, #5E6876); margin: 8px 0 16px; }
 .trade-search-results { list-style: none; padding: 0; margin: 0; border: 1px solid var(--border-subtle, #E4E8ED); border-radius: 8px; overflow: hidden; }
 .trade-search-result { width: 100%; background: var(--surface-raised, #fff); border: none; border-bottom: 1px solid var(--border-subtle, #E4E8ED); padding: 14px 20px; display: grid; grid-template-columns: 80px 1fr auto; gap: 16px; align-items: center; text-align: left; cursor: pointer; font-family: inherit; font-size: 14px; }
 .trade-search-results li:last-child .trade-search-result { border-bottom: none; }
 .trade-search-result:hover { background: var(--surface-pressed, #E4E8ED); }
-.trade-search-result:focus-visible { outline: 3px solid #06B6D4; outline-offset: -3px; }
-.trade-search-result__symbol { font-family: var(--font-mono); font-weight: 600; color: #0891B2; }
+.trade-search-result:focus-visible { outline: 3px solid #155E75; outline-offset: -3px; }
+.trade-search-result__symbol { font-family: var(--font-mono); font-weight: 600; color: #155E75; }
 .trade-search-result__name { color: var(--text-secondary, #3E4753); }
 .trade-search-result__price { font-family: var(--font-mono); font-weight: 500; }
 
